@@ -7,6 +7,7 @@ import { ProfileView } from './views/ProfileView';
 import { DiscoveryView } from './views/DiscoveryView';
 import { ConnectionsView } from './views/ConnectionsView';
 import { ChatView } from './views/ChatView';
+import { SettingsView } from './views/SettingsView';
 import { useAppStore } from './store/useAppStore';
 
 // Protected Route Wrapper
@@ -34,6 +35,12 @@ const App: React.FC = () => {
                     <Route path="/profile" element={
                         <ProtectedRoute>
                             <ProfileView />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/settings" element={
+                        <ProtectedRoute>
+                            <SettingsView />
                         </ProtectedRoute>
                     } />
 

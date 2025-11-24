@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback } from 'react';
 import { Message, UserModel } from '../types';
 import { ChatService } from '../services/chatService';
@@ -51,8 +52,8 @@ export const useChat = (connectionId: string) => {
     }, [connectionId]);
 
     /* Send Message Handler with Optimistic UI */
-    const sendMessage = useCallback(async (text: string) => {
-        if (!text.trim() || !currentUser) return;
+    const sendMessage = useCallback(async (text: string, imageUrl?: string) => {
+        if ((!text.trim() && !imageUrl) || !currentUser) return;
 
         // 1. Optimistic Update
         const tempId = `temp_${Date.now()}`;
@@ -60,6 +61,8 @@ export const useChat = (connectionId: string) => {
             id: tempId,
             senderId: currentUser.uid,
             text: text,
+            imageUrl: imageUrl,
+            type: imageUrl ? 'image' : 'text',
             timestamp: Date.now(),
             status: 'sending'
         };
@@ -68,7 +71,7 @@ export const useChat = (connectionId: string) => {
 
         try {
             // 2. Call Service
-            const sentMessage = await service.sendMessage(connectionId, currentUser.uid, text);
+            const sentMessage = await service.sendMessage(connectionId, currentUser.uid, text, imageUrl);
 
             // 3. Replace temp message with real confirmed message
             setMessages(prev => 

@@ -1,4 +1,5 @@
 
+
 /**
  * Global Type Definitions for Cypress
  * 
@@ -31,10 +32,28 @@ export enum Interest {
     MUSIC = "Music"
 }
 
+export enum Language {
+    ENGLISH = "English",
+    MANDARIN_SIMPLIFIED = "Mandarin (Simplified)",
+    MANDARIN_TRADITIONAL = "Mandarin (Traditional)",
+    SPANISH = "Spanish",
+    JAPANESE = "Japanese",
+    KOREAN = "Korean",
+    FRENCH = "French",
+    ITALIAN = "Italian",
+    PORTUGUESE = "Portuguese"
+}
+
 export enum ConnectionStatus {
     PENDING = "PENDING",
     CONNECTED = "CONNECTED",
     DISMISSED = "DISMISSED"
+}
+
+export interface NotificationSettings {
+    general: boolean;
+    dailyMatches: boolean; // "everyday push with people sharing the same hobbies or languages (sum >= 3)"
+    directMessages: boolean;
 }
 
 /* 
@@ -48,9 +67,11 @@ export interface UserModel {
     major: Major | null;
     interests: Interest[];
     homeRegion: string;
-    languages: string[];
+    languages: Language[];
     photoUrl?: string;
     isVerified: boolean;
+    isSearchable: boolean; // Privacy Setting
+    settings: NotificationSettings;
 }
 
 /* 
@@ -63,7 +84,7 @@ export interface MatchProfileModel {
     major: Major;
     commonInterests: Interest[];
     homeRegion?: string;
-    languages?: string[];
+    languages: Language[];
     photoUrl?: string;
 }
 
@@ -83,11 +104,14 @@ export interface ConnectionModel {
  * Chat Types
  */
 export type MessageStatus = 'sending' | 'sent' | 'error';
+export type MessageType = 'text' | 'image';
 
 export interface Message {
     id: string;
     senderId: string;
     text: string;
+    imageUrl?: string;
+    type: MessageType;
     timestamp: number;
     status: MessageStatus;
 }

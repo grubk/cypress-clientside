@@ -1,9 +1,12 @@
 
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
 import { DataRepository } from '../services/dataRepository';
 import { UserModel, Message } from '../types';
+import { useAppStore } from '../store/useAppStore';
+import { TRANSLATIONS } from '../utils/translations';
 
 /*
  * ChatView
@@ -17,9 +20,12 @@ export const ChatView: React.FC = () => {
     const navigate = useNavigate();
     const [recipient, setRecipient] = useState<Partial<UserModel> | null>(null);
     const [inputText, setInputText] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Core Logic Hook
     const { messages, isLoading, sendMessage, currentUserId } = useChat(uid || '');
+    const { uiLanguage } = useAppStore();
+    const t = TRANSLATIONS[uiLanguage];
     
     // Auto-scroll ref
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -54,6 +60,22 @@ export const ChatView: React.FC = () => {
         }
     };
 
+    // Handle Image Upload
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                // Resize/Process image logic could go here
+                const imageUrl = reader.result as string;
+                sendMessage('', imageUrl); // Send as image message
+            };
+            reader.readAsDataURL(file);
+        }
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
     // Helper to format time
     const formatTime = (timestamp: number) => {
         return new Intl.DateTimeFormat('en-US', {
@@ -63,15 +85,15 @@ export const ChatView: React.FC = () => {
         }).format(new Date(timestamp));
     };
 
-    if (!uid) return <div>Invalid Chat ID</div>;
+    if (!uid) return <div>{t.chat_invalid}</div>;
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex flex-col h-full bg-gray-50 md:bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-200 md:h-[calc(100vh-6rem)] md:m-8 md:max-w-4xl md:mx-auto">
             {/* Header */}
-            <div className="bg-white px-4 py-3 shadow-sm border-b border-gray-200 flex items-center sticky top-0 z-10">
+            <div className="bg-white px-4 py-3 shadow-sm border-b border-gray-200 flex items-center sticky top-0 z-10 md:rounded-t-2xl">
                 <button 
                     onClick={() => navigate('/connections')} 
-                    className="mr-3 text-gray-500 hover:text-ubc-blue"
+                    className="mr-3 text-gray-500 hover:text-ubc-blue md:hidden"
                 >
                     <i className="fas fa-arrow-left text-lg"></i>
                 </button>
@@ -96,7 +118,7 @@ export const ChatView: React.FC = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
                 {isLoading && (
                     <div className="flex justify-center pt-10 text-gray-400">
                         <i className="fas fa-circle-notch fa-spin text-2xl"></i>
@@ -106,7 +128,7 @@ export const ChatView: React.FC = () => {
                 {!isLoading && messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60">
                         <i className="fas fa-comments text-4xl mb-2"></i>
-                        <p>No messages yet. Say hi!</p>
+                        <p>{t.chat_empty}</p>
                     </div>
                 )}
 
@@ -125,25 +147,35 @@ export const ChatView: React.FC = () => {
                             className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${isSequence ? 'mt-1' : 'mt-4'}`}
                         >
                             <div 
-                                className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm relative group
-                                    ${isMe 
-                                        ? 'bg-ubc-blue text-white rounded-br-none' 
-                                        : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm'
+                                className={`max-w-[80%] rounded-2xl relative group overflow-hidden
+                                    ${msg.type === 'text' 
+                                        ? (isMe 
+                                            ? 'bg-ubc-blue text-white rounded-br-none px-4 py-2' 
+                                            : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm px-4 py-2')
+                                        : 'bg-transparent'
                                     }
                                 `}
                             >
-                                {msg.text}
+                                {msg.type === 'image' ? (
+                                    <img 
+                                        src={msg.imageUrl} 
+                                        alt="Shared" 
+                                        className="rounded-2xl max-w-full max-h-60 border border-gray-200 shadow-sm"
+                                    />
+                                ) : (
+                                    msg.text
+                                )}
                                 
                                 {/* Status Indicator for 'Me' */}
                                 {isMe && (
                                     <div className="absolute -bottom-4 right-0 text-[10px] text-gray-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         {msg.status === 'sending' ? (
                                             <>
-                                                <span>sending</span>
+                                                <span>{t.chat_sending}</span>
                                                 <i className="fas fa-spinner fa-spin"></i>
                                             </>
                                         ) : msg.status === 'error' ? (
-                                            <span className="text-red-500">failed</span>
+                                            <span className="text-red-500">{t.chat_failed}</span>
                                         ) : (
                                             <span>{formatTime(msg.timestamp)}</span>
                                         )}
@@ -164,11 +196,27 @@ export const ChatView: React.FC = () => {
             </div>
 
             {/* Input Area */}
-            <div className="bg-white p-3 border-t border-gray-200 flex items-end gap-2">
+            <div className="bg-white p-3 border-t border-gray-200 flex items-end gap-2 md:rounded-b-2xl">
+                {/* Photo Button */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleFileChange}
+                />
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition shrink-0"
+                    title={t.chat_photo}
+                >
+                    <i className="fas fa-image"></i>
+                </button>
+
                 <textarea
                     className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ubc-blue/50 resize-none max-h-32"
                     rows={1}
-                    placeholder="Message..."
+                    placeholder={t.chat_placeholder}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -176,7 +224,7 @@ export const ChatView: React.FC = () => {
                 <button 
                     onClick={handleSend}
                     disabled={!inputText.trim()}
-                    className="w-10 h-10 rounded-full bg-ubc-blue text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-ubc-blue/90 transition"
+                    className="w-10 h-10 rounded-full bg-ubc-blue text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-ubc-blue/90 transition shrink-0"
                 >
                     <i className="fas fa-paper-plane text-sm pl-0.5 pt-0.5"></i>
                 </button>

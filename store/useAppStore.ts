@@ -1,6 +1,7 @@
 
+
 import { create } from 'zustand';
-import { UserModel, MatchProfileModel, ConnectionModel } from '../types';
+import { UserModel, MatchProfileModel, ConnectionModel, Language } from '../types';
 import { DataRepository } from '../services/dataRepository';
 
 /*
@@ -12,9 +13,11 @@ interface AppState {
     currentUser: UserModel | null;
     isAuthenticated: boolean;
     matchQueue: MatchProfileModel[];
+    searchResults: MatchProfileModel[]; // For Search feature
     connections: ConnectionModel[];
     isLoading: boolean;
     error: string | null;
+    uiLanguage: Language;
 
     // Actions
     login: (email: string) => Promise<void>;
@@ -22,8 +25,10 @@ interface AppState {
     logout: () => void;
     updateUserProfile: (updates: Partial<UserModel>) => Promise<void>;
     fetchMatches: () => Promise<void>;
+    searchUsers: (query: string) => Promise<void>;
     handleSwipe: (targetUid: string, action: 'CONNECT' | 'DISMISS') => Promise<void>;
     fetchConnections: () => Promise<void>;
+    setUiLanguage: (lang: Language) => void;
 }
 
 /*
@@ -37,9 +42,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     currentUser: null,
     isAuthenticated: false,
     matchQueue: [],
+    searchResults: [],
     connections: [],
     isLoading: false,
     error: null,
+    uiLanguage: Language.ENGLISH,
 
     login: async (email: string) => {
         set({ isLoading: true, error: null });
@@ -64,7 +71,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     logout: () => {
-        set({ currentUser: null, isAuthenticated: false, matchQueue: [], connections: [] });
+        set({ currentUser: null, isAuthenticated: false, matchQueue: [], connections: [], searchResults: [] });
     },
 
     updateUserProfile: async (updates: Partial<UserModel>) => {
@@ -84,6 +91,21 @@ export const useAppStore = create<AppState>((set, get) => ({
             const repo = DataRepository.getInstance();
             const matches = await repo.getMatchQueue();
             set({ matchQueue: matches, isLoading: false });
+        } catch (err: any) {
+            set({ error: err.message, isLoading: false });
+        }
+    },
+
+    searchUsers: async (query: string) => {
+        if (!query.trim()) {
+            set({ searchResults: [] });
+            return;
+        }
+        set({ isLoading: true });
+        try {
+            const repo = DataRepository.getInstance();
+            const results = await repo.searchUsers(query);
+            set({ searchResults: results, isLoading: false });
         } catch (err: any) {
             set({ error: err.message, isLoading: false });
         }
@@ -112,5 +134,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (err: any) {
             set({ error: err.message, isLoading: false });
         }
+    },
+
+    setUiLanguage: (lang: Language) => {
+        set({ uiLanguage: lang });
     }
 }));

@@ -1,4 +1,5 @@
 
+
 import { Message } from '../types';
 
 type MessageListener = (message: Message) => void;
@@ -51,6 +52,7 @@ export class ChatService {
                         id: 'msg_1',
                         senderId: connectionId, // The other person
                         text: 'Hey! I saw you like hiking too?',
+                        type: 'text',
                         timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
                         status: 'sent'
                     },
@@ -58,6 +60,7 @@ export class ChatService {
                         id: 'msg_2',
                         senderId: connectionId,
                         text: 'Have you been to Garibaldi Lake?',
+                        type: 'text',
                         timestamp: Date.now() - 1000 * 60 * 60 * 2 + 5000,
                         status: 'sent'
                     }
@@ -71,7 +74,7 @@ export class ChatService {
      * Send a message.
      * Simulates network request and triggers a bot reply.
      */
-    public async sendMessage(connectionId: string, senderId: string, text: string): Promise<Message> {
+    public async sendMessage(connectionId: string, senderId: string, text: string, imageUrl?: string): Promise<Message> {
         return new Promise((resolve) => {
             // Simulate network latency (300ms)
             setTimeout(() => {
@@ -79,6 +82,8 @@ export class ChatService {
                     id: `msg_${Date.now()}`,
                     senderId: senderId,
                     text: text,
+                    imageUrl: imageUrl,
+                    type: imageUrl ? 'image' : 'text',
                     timestamp: Date.now(),
                     status: 'sent'
                 };
@@ -98,6 +103,7 @@ export class ChatService {
                 id: `msg_${Date.now()}_bot`,
                 senderId: connectionId,
                 text: "That sounds awesome! We should definitely organize a trip sometime soon.",
+                type: 'text',
                 timestamp: Date.now(),
                 status: 'sent'
             };
