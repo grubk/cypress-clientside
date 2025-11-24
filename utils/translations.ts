@@ -52,6 +52,9 @@ export const TRANSLATIONS = {
         profile_major: "Major",
         profile_major_select: "Select a major",
         profile_major_none: "Not Selected",
+        profile_bio: "Bio / About Me",
+        profile_bio_hint: "Tell others a bit about yourself...",
+        profile_bio_none: "No bio written.",
         profile_langs: "Languages Spoken",
         profile_langs_hint: "Select all that apply. Matching languages improves discovery.",
         profile_interests: "Interests",
@@ -69,6 +72,10 @@ export const TRANSLATIONS = {
         profile_photo_snap: "Snap",
         profile_photo_cancel: "Cancel",
 
+        // Public Profile
+        public_connect: "Connect",
+        public_dismiss: "Pass",
+
         // Discovery
         disc_finding: "Finding students...",
         disc_no_new: "No new matches",
@@ -77,7 +84,7 @@ export const TRANSLATIONS = {
         disc_common: "Common Interests",
         disc_common_none: "No common interests found.",
         disc_langs: "Languages",
-        disc_search_placeholder: "Search by name or major...",
+        disc_search_placeholder: "Search name, major, or email...",
         disc_search_results: "Search Results",
         disc_search_none: "No students found matching your search.",
 
@@ -141,6 +148,9 @@ export const TRANSLATIONS = {
         profile_major: "专业",
         profile_major_select: "选择专业",
         profile_major_none: "未选择",
+        profile_bio: "个人简介",
+        profile_bio_hint: "介绍一下你自己...",
+        profile_bio_none: "暂无简介。",
         profile_langs: "常用语言",
         profile_langs_hint: "选择所有适用的语言。匹配语言有助于发现新朋友。",
         profile_interests: "兴趣爱好",
@@ -158,6 +168,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "拍照",
         profile_photo_cancel: "取消",
 
+        public_connect: "添加好友",
+        public_dismiss: "跳过",
+
         disc_finding: "正在寻找同学...",
         disc_no_new: "没有新的匹配",
         disc_check_later: "稍后再来看看你所在地区的更多学生！",
@@ -165,7 +178,7 @@ export const TRANSLATIONS = {
         disc_common: "共同兴趣",
         disc_common_none: "未发现共同兴趣。",
         disc_langs: "语言",
-        disc_search_placeholder: "按姓名或专业搜索...",
+        disc_search_placeholder: "按姓名、专业或邮箱搜索...",
         disc_search_results: "搜索结果",
         disc_search_none: "未找到匹配的学生。",
 
@@ -181,6 +194,7 @@ export const TRANSLATIONS = {
         chat_failed: "失败",
         chat_photo: "发送图片",
     },
+    // ... (Keeping other languages implied for brevity in this specific update, but ensuring structure matches)
     [Language.MANDARIN_TRADITIONAL]: {
         welcome: "歡迎回來",
         create: "建立帳戶",
@@ -227,6 +241,9 @@ export const TRANSLATIONS = {
         profile_major: "主修",
         profile_major_select: "選擇主修",
         profile_major_none: "未選擇",
+        profile_bio: "個人簡介",
+        profile_bio_hint: "介紹一下你自己...",
+        profile_bio_none: "暫無簡介。",
         profile_langs: "常用語言",
         profile_langs_hint: "選擇所有適用的語言。匹配語言有助於發現新朋友。",
         profile_interests: "興趣愛好",
@@ -244,6 +261,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "拍照",
         profile_photo_cancel: "取消",
 
+        public_connect: "添加好友",
+        public_dismiss: "跳過",
+
         disc_finding: "正在尋找同學...",
         disc_no_new: "沒有新的配對",
         disc_check_later: "稍後再來看看你所在地區的更多學生！",
@@ -251,7 +271,7 @@ export const TRANSLATIONS = {
         disc_common: "共同興趣",
         disc_common_none: "未發現共同興趣。",
         disc_langs: "語言",
-        disc_search_placeholder: "按姓名或主修搜尋...",
+        disc_search_placeholder: "按姓名、主修或郵箱搜尋...",
         disc_search_results: "搜尋結果",
         disc_search_none: "未找到匹配的學生。",
 
@@ -313,6 +333,9 @@ export const TRANSLATIONS = {
         profile_major: "Especialidad",
         profile_major_select: "Seleccionar especialidad",
         profile_major_none: "No seleccionado",
+        profile_bio: "Biografía",
+        profile_bio_hint: "Cuéntanos un poco sobre ti...",
+        profile_bio_none: "Sin biografía.",
         profile_langs: "Idiomas hablados",
         profile_langs_hint: "Selecciona todos los que correspondan. Coincidir idiomas mejora el descubrimiento.",
         profile_interests: "Intereses",
@@ -330,6 +353,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "Capturar",
         profile_photo_cancel: "Cancelar",
 
+        public_connect: "Conectar",
+        public_dismiss: "Pasar",
+
         disc_finding: "Buscando estudiantes...",
         disc_no_new: "No hay nuevas coincidencias",
         disc_check_later: "¡Vuelve más tarde para ver más estudiantes!",
@@ -337,7 +363,7 @@ export const TRANSLATIONS = {
         disc_common: "Intereses Comunes",
         disc_common_none: "No se encontraron intereses comunes.",
         disc_langs: "Idiomas",
-        disc_search_placeholder: "Buscar por nombre o carrera...",
+        disc_search_placeholder: "Buscar por nombre, carrera o email...",
         disc_search_results: "Resultados de Búsqueda",
         disc_search_none: "No se encontraron estudiantes.",
 
@@ -399,6 +425,9 @@ export const TRANSLATIONS = {
         profile_major: "専攻",
         profile_major_select: "専攻を選択",
         profile_major_none: "未選択",
+        profile_bio: "自己紹介",
+        profile_bio_hint: "自分について教えてください...",
+        profile_bio_none: "自己紹介はありません。",
         profile_langs: "使用言語",
         profile_langs_hint: "該当するものをすべて選択してください。",
         profile_interests: "興味・関心",
@@ -416,6 +445,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "撮影",
         profile_photo_cancel: "キャンセル",
 
+        public_connect: "友達追加",
+        public_dismiss: "パス",
+
         disc_finding: "学生を探しています...",
         disc_no_new: "新しいマッチはありません",
         disc_check_later: "後でまたチェックしてください！",
@@ -423,7 +455,7 @@ export const TRANSLATIONS = {
         disc_common: "共通の興味",
         disc_common_none: "共通の興味は見つかりませんでした。",
         disc_langs: "言語",
-        disc_search_placeholder: "名前や専攻で検索...",
+        disc_search_placeholder: "名前、専攻、またはメールで検索...",
         disc_search_results: "検索結果",
         disc_search_none: "一致する学生が見つかりませんでした。",
 
@@ -485,6 +517,9 @@ export const TRANSLATIONS = {
         profile_major: "전공",
         profile_major_select: "전공 선택",
         profile_major_none: "선택 안 됨",
+        profile_bio: "자기 소개",
+        profile_bio_hint: "자신에 대해 조금 알려주세요...",
+        profile_bio_none: "자기 소개가 없습니다.",
         profile_langs: "사용 언어",
         profile_langs_hint: "해당되는 모든 언어를 선택하세요.",
         profile_interests: "관심사",
@@ -502,6 +537,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "촬영",
         profile_photo_cancel: "취소",
 
+        public_connect: "친구 추가",
+        public_dismiss: "패스",
+
         disc_finding: "학생 찾는 중...",
         disc_no_new: "새로운 매치가 없습니다",
         disc_check_later: "나중에 다시 확인해주세요!",
@@ -509,7 +547,7 @@ export const TRANSLATIONS = {
         disc_common: "공통 관심사",
         disc_common_none: "공통 관심사가 없습니다.",
         disc_langs: "언어",
-        disc_search_placeholder: "이름 또는 전공으로 검색...",
+        disc_search_placeholder: "이름, 전공 또는 이메일로 검색...",
         disc_search_results: "검색 결과",
         disc_search_none: "일치하는 학생이 없습니다.",
 
@@ -571,6 +609,9 @@ export const TRANSLATIONS = {
         profile_major: "Majeure",
         profile_major_select: "Sélectionner une majeure",
         profile_major_none: "Non sélectionné",
+        profile_bio: "Biographie",
+        profile_bio_hint: "Parlez-nous un peu de vous...",
+        profile_bio_none: "Aucune biographie.",
         profile_langs: "Langues parlées",
         profile_langs_hint: "Sélectionnez tout ce qui s'applique.",
         profile_interests: "Intérêts",
@@ -588,6 +629,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "Capturer",
         profile_photo_cancel: "Annuler",
 
+        public_connect: "Se connecter",
+        public_dismiss: "Passer",
+
         disc_finding: "Recherche d'étudiants...",
         disc_no_new: "Pas de nouveaux matchs",
         disc_check_later: "Revenez plus tard !",
@@ -595,7 +639,7 @@ export const TRANSLATIONS = {
         disc_common: "Intérêts communs",
         disc_common_none: "Aucun intérêt commun trouvé.",
         disc_langs: "Langues",
-        disc_search_placeholder: "Rechercher...",
+        disc_search_placeholder: "Rechercher nom, majeure ou e-mail...",
         disc_search_results: "Résultats de la recherche",
         disc_search_none: "Aucun étudiant trouvé.",
 
@@ -657,6 +701,9 @@ export const TRANSLATIONS = {
         profile_major: "Corso di laurea",
         profile_major_select: "Seleziona corso",
         profile_major_none: "Non selezionato",
+        profile_bio: "Biografia",
+        profile_bio_hint: "Parlaci un po' di te...",
+        profile_bio_none: "Nessuna biografia.",
         profile_langs: "Lingue parlate",
         profile_langs_hint: "Seleziona tutte le voci pertinenti.",
         profile_interests: "Interessi",
@@ -674,6 +721,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "Scatta",
         profile_photo_cancel: "Annulla",
 
+        public_connect: "Connetti",
+        public_dismiss: "Salta",
+
         disc_finding: "Ricerca studenti...",
         disc_no_new: "Nessuna nuova corrispondenza",
         disc_check_later: "Torna più tardi!",
@@ -681,7 +731,7 @@ export const TRANSLATIONS = {
         disc_common: "Interessi comuni",
         disc_common_none: "Nessun interesse comune trovato.",
         disc_langs: "Lingue",
-        disc_search_placeholder: "Cerca...",
+        disc_search_placeholder: "Cerca nome, corso o email...",
         disc_search_results: "Risultati ricerca",
         disc_search_none: "Nessuno studente trovato.",
 
@@ -743,9 +793,12 @@ export const TRANSLATIONS = {
         profile_major: "Curso",
         profile_major_select: "Selecione o curso",
         profile_major_none: "Não selecionado",
+        profile_bio: "Biografia",
+        profile_bio_hint: "Conte um pouco sobre você...",
+        profile_bio_none: "Sem biografia.",
         profile_langs: "Idiomas falados",
         profile_langs_hint: "Selecione todos que se aplicam.",
-        profile_interests: "Interesses",
+        profile_interests: "Intereses",
         profile_region: "Região de origem",
         profile_region_hint: "ex. Vancouver, BC",
         profile_region_none: "Não especificado",
@@ -760,6 +813,9 @@ export const TRANSLATIONS = {
         profile_photo_snap: "Capturar",
         profile_photo_cancel: "Cancelar",
 
+        public_connect: "Conectar",
+        public_dismiss: "Pular",
+
         disc_finding: "Procurando estudantes...",
         disc_no_new: "Sem novas combinações",
         disc_check_later: "Volte mais tarde!",
@@ -767,7 +823,7 @@ export const TRANSLATIONS = {
         disc_common: "Interessi comuns",
         disc_common_none: "Nenhum interesse comum encontrado.",
         disc_langs: "Idiomas",
-        disc_search_placeholder: "Pesquisar...",
+        disc_search_placeholder: "Pesquisar nome, curso ou e-mail...",
         disc_search_results: "Resultados da pesquisa",
         disc_search_none: "Nenhum aluno encontrado.",
 

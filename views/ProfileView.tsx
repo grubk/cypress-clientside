@@ -14,6 +14,7 @@ export const ProfileView: React.FC = () => {
     // Local state for form handling
     const [displayName, setDisplayName] = useState('');
     const [major, setMajor] = useState<Major | ''>('');
+    const [bio, setBio] = useState('');
     const [selectedInterests, setSelectedInterests] = useState<Interest[]>([]);
     const [selectedLanguages, setSelectedLanguages] = useState<Language[]>([]);
     const [homeRegion, setHomeRegion] = useState('');
@@ -36,6 +37,7 @@ export const ProfileView: React.FC = () => {
         if (currentUser) {
             setDisplayName(currentUser.displayName);
             setMajor(currentUser.major || '');
+            setBio(currentUser.bio || '');
             setSelectedInterests(currentUser.interests);
             setSelectedLanguages(currentUser.languages || []);
             setHomeRegion(currentUser.homeRegion);
@@ -67,6 +69,7 @@ export const ProfileView: React.FC = () => {
         await updateUserProfile({
             displayName,
             major: major as Major,
+            bio,
             interests: selectedInterests,
             languages: selectedLanguages,
             homeRegion
@@ -273,6 +276,23 @@ export const ProfileView: React.FC = () => {
                                 </select>
                             ) : (
                                 <p className="text-lg border-b border-gray-100 pb-2">{major || t.profile_major_none}</p>
+                            )}
+                        </div>
+
+                        {/* Bio */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_bio}</label>
+                            {isEditing ? (
+                                <textarea
+                                    value={bio}
+                                    onChange={(e) => setBio(e.target.value)}
+                                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ubc-blue focus:border-transparent outline-none resize-none h-24"
+                                    placeholder={t.profile_bio_hint}
+                                />
+                            ) : (
+                                <p className="text-base text-gray-600 border-b border-gray-100 pb-2 italic">
+                                    {bio || t.profile_bio_none}
+                                </p>
                             )}
                         </div>
 

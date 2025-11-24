@@ -29,6 +29,7 @@ export class DataRepository {
             uid: 'user_2',
             displayName: 'Sarah Jenkins',
             major: Major.COMMERCE,
+            bio: "Love exploring new coffee shops and hiking on weekends!",
             commonInterests: [Interest.HIKING, Interest.STARTUPS],
             homeRegion: 'Vancouver, BC',
             languages: [Language.ENGLISH, Language.FRENCH],
@@ -38,6 +39,7 @@ export class DataRepository {
             uid: 'user_3',
             displayName: 'David Chen',
             major: Major.ENGINEERING,
+            bio: "Building things and breaking them. Gamer at heart.",
             commonInterests: [Interest.VIDEO_GAMES, Interest.CODING],
             homeRegion: 'Toronto, ON',
             languages: [Language.ENGLISH, Language.MANDARIN_SIMPLIFIED],
@@ -47,6 +49,7 @@ export class DataRepository {
             uid: 'user_4',
             displayName: 'Emily Ross',
             major: Major.ARTS,
+            bio: "Art history major. Always down for a museum trip.",
             commonInterests: [Interest.PAINTING],
             homeRegion: 'Seattle, WA',
             languages: [Language.ENGLISH],
@@ -65,7 +68,7 @@ export class DataRepository {
 
     private constructor() {
         this.loadDatabase();
-        this.cleanDuplicateAccounts(); // Run cleanup on init
+        this.cleanDuplicateAccounts(); // Force cleanup on init
 
         // Pre-seed the "Database" with a valid user if not present (e.g. first run)
         const seedEmail = 'valid@student.ubc.ca';
@@ -109,34 +112,44 @@ export class DataRepository {
     /**
      * Cleans up duplicate accounts by normalizing emails to lowercase.
      * Keeps the most recently created account (based on UID timestamp if available)
+     * and strictly removes others.
      */
     private cleanDuplicateAccounts() {
         const cleanedMap = new Map<string, UserModel>();
         let hasChanges = false;
+        const seenEmails = new Set<string>();
 
-        for (const [rawEmail, user] of this.registeredUsers.entries()) {
-            const normalizedEmail = user.email.toLowerCase();
-            const existingUser = cleanedMap.get(normalizedEmail);
+        // Convert current map to array to sort/process
+        const entries = Array.from(this.registeredUsers.entries());
 
-            if (existingUser) {
-                // Collision detected. Determine which one is newer.
-                const existingTime = this.extractTimestampFromUid(existingUser.uid);
-                const currentTime = this.extractTimestampFromUid(user.uid);
+        for (const [key, user] of entries) {
+            const normalizedEmail = user.email.toLowerCase().trim();
+            
+            // If we've already processed this email in this pass, check timestamps
+            if (seenEmails.has(normalizedEmail)) {
+                const existingUser = cleanedMap.get(normalizedEmail);
+                if (existingUser) {
+                    const existingTime = this.extractTimestampFromUid(existingUser.uid);
+                    const currentTime = this.extractTimestampFromUid(user.uid);
 
-                if (currentTime > existingTime) {
-                    // Current is newer, replace existing
-                    cleanedMap.set(normalizedEmail, user);
+                    if (currentTime > existingTime) {
+                        // Current is newer, replace existing
+                        cleanedMap.set(normalizedEmail, user);
+                    }
+                    // Else ignore current (duplicate/older)
+                    hasChanges = true;
                 }
-                // Else keep existing (implied discard of current 'user')
-                hasChanges = true;
             } else {
+                // First time seeing this email
+                seenEmails.add(normalizedEmail);
                 cleanedMap.set(normalizedEmail, user);
-                // If the key was not lowercase, we are effectively changing the map
-                if (rawEmail !== normalizedEmail) hasChanges = true;
+                
+                // If the map key was different from normalized email, that's a change
+                if (key !== normalizedEmail) hasChanges = true;
             }
         }
 
-        if (hasChanges) {
+        if (hasChanges || cleanedMap.size !== this.registeredUsers.size) {
             this.registeredUsers = cleanedMap;
             this.saveDatabase();
             console.debug("Database cleaned of duplicates/normalized.");
@@ -171,6 +184,7 @@ export class DataRepository {
             email: email, // Will be stored normalized in logic
             displayName: displayName,
             major: null,
+            bio: '',
             interests: [],
             homeRegion: '',
             languages: [Language.ENGLISH], // Default
@@ -206,11 +220,13 @@ export class DataRepository {
                     return;
                 }
 
+                // Force clean before login to ensure valid state
+                this.cleanDuplicateAccounts();
+
                 let user = this.registeredUsers.get(normalizedEmail);
                 
                 // DEMO FIX: If user doesn't exist in local storage (new device), 
                 // auto-provision them to simulate cloud retrieval.
-                // This prevents "User not found" when switching devices in the prototype.
                 if (!user) {
                     user = this.generateNewUser(normalizedEmail);
                     user.isVerified = true; // Assume verified if they are "logging in"
@@ -254,6 +270,9 @@ export class DataRepository {
                     reject(new Error("Password must be at least 6 characters"));
                     return;
                 }
+
+                // Refresh cleanup to ensure we don't have this user lurking
+                this.cleanDuplicateAccounts();
 
                 if (this.registeredUsers.has(normalizedEmail)) {
                     reject(new Error("The email is already been used."));
@@ -302,13 +321,39 @@ export class DataRepository {
      * Discovery: Fetch Queue
      * Specification: Retrieves the prioritized match queue for the active user.
      * Logic: Sorts potential matches to prioritize those with shared languages.
+     * Update: Now includes actual registered users so they can be "posted" to others' feed.
      */
     public async getMatchQueue(): Promise<MatchProfileModel[]> {
         return new Promise((resolve) => {
             setTimeout(() => {
-                let matches = [...this.mockMatches];
+                // 1. Start with mock matches
+                let matches: MatchProfileModel[] = [...this.mockMatches];
+
+                // 2. Mix in real registered users (excluding self)
+                if (this.mockUser) {
+                    const myUid = this.mockUser.uid;
+                    this.registeredUsers.forEach(user => {
+                        // Don't show myself, and check privacy setting
+                        if (user.uid !== myUid && user.isSearchable) {
+                            const commonInterests = user.interests.filter(i => 
+                                this.mockUser?.interests.includes(i)
+                            );
+
+                            matches.push({
+                                uid: user.uid,
+                                displayName: user.displayName,
+                                major: user.major || Major.ARTS,
+                                bio: user.bio,
+                                commonInterests: commonInterests,
+                                homeRegion: user.homeRegion,
+                                languages: user.languages,
+                                photoUrl: user.photoUrl
+                            });
+                        }
+                    });
+                }
                 
-                // Prioritize by Language Similarity
+                // 3. Prioritize by Language Similarity
                 if (this.mockUser && this.mockUser.languages.length > 0) {
                     const userLangs = new Set(this.mockUser.languages);
                     
@@ -319,7 +364,10 @@ export class DataRepository {
                     });
                 }
                 
-                resolve(matches);
+                // Deduplicate by UID (in case a registered user is also a mock user)
+                const uniqueMatches = Array.from(new Map(matches.map(m => [m.uid, m])).values());
+                
+                resolve(uniqueMatches);
             }, 600);
         });
     }
@@ -327,6 +375,7 @@ export class DataRepository {
     /* 
      * Discovery: Search
      * Specification: Searches the database for users matching the query who have privacy enabled.
+     * Update: Now supports searching by Email.
      */
     public async searchUsers(query: string): Promise<MatchProfileModel[]> {
         return new Promise((resolve) => {
@@ -346,11 +395,12 @@ export class DataRepository {
                     if (user.isSearchable === false) return;
                     if (user.uid === currentUserUid) return;
 
-                    // Match Logic (Name or Major)
+                    // Match Logic (Name, Major, OR Email)
                     const nameMatch = user.displayName.toLowerCase().includes(lowerQuery);
                     const majorMatch = user.major?.toLowerCase().includes(lowerQuery);
+                    const emailMatch = user.email.toLowerCase().includes(lowerQuery);
 
-                    if (nameMatch || majorMatch) {
+                    if (nameMatch || majorMatch || emailMatch) {
                         // Calculate common interests/langs for the preview model
                         const commonInterests = user.interests.filter(i => 
                             this.mockUser?.interests.includes(i)
@@ -360,6 +410,7 @@ export class DataRepository {
                             uid: user.uid,
                             displayName: user.displayName,
                             major: user.major || Major.ARTS, // Fallback
+                            bio: user.bio,
                             commonInterests: commonInterests,
                             languages: user.languages,
                             homeRegion: user.homeRegion,
@@ -424,12 +475,36 @@ export class DataRepository {
 
     /*
      * General: Get User by ID
-     * Specification: Fetches public profile of a user. Used for Chat Header.
+     * Specification: Fetches public profile of a user. Used for Chat Header and Public Profile.
      */
     public async getUser(uid: string): Promise<Partial<UserModel>> {
         return new Promise((resolve) => {
             setTimeout(() => {
-                // Return a mock user based on the connection ID
+                // 1. Try to find in registered users
+                for (const user of this.registeredUsers.values()) {
+                    if (user.uid === uid) {
+                        resolve(user);
+                        return;
+                    }
+                }
+
+                // 2. Try mock matches
+                const match = this.mockMatches.find(m => m.uid === uid);
+                if (match) {
+                    resolve({
+                        uid: match.uid,
+                        displayName: match.displayName,
+                        major: match.major,
+                        bio: match.bio,
+                        photoUrl: match.photoUrl,
+                        interests: match.commonInterests, // Approximate for mock
+                        homeRegion: match.homeRegion,
+                        languages: match.languages
+                    });
+                    return;
+                }
+                
+                // 3. Fallback/Demo connection
                 resolve({
                     uid: uid,
                     displayName: uid === 'user_99' ? 'Jennifer Wang' : 'Unknown User',

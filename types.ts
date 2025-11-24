@@ -65,6 +65,7 @@ export interface UserModel {
     email: string;
     displayName: string;
     major: Major | null;
+    bio?: string;
     interests: Interest[];
     homeRegion: string;
     languages: Language[];
@@ -82,6 +83,7 @@ export interface MatchProfileModel {
     uid: string;
     displayName: string;
     major: Major;
+    bio?: string;
     commonInterests: Interest[];
     homeRegion?: string;
     languages: Language[];

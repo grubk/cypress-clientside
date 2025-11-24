@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { TRANSLATIONS } from '../utils/translations';
+import { Link } from 'react-router-dom';
 
 /*
  * DiscoveryView
@@ -105,7 +106,9 @@ export const DiscoveryView: React.FC = () => {
                                             className="w-16 h-16 rounded-full object-cover bg-gray-100"
                                         />
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-gray-800 text-lg">{profile.displayName}</h4>
+                                            <Link to={`/user/${profile.uid}`} className="font-bold text-gray-800 text-lg hover:text-ubc-blue hover:underline decoration-2 underline-offset-2">
+                                                {profile.displayName}
+                                            </Link>
                                             <p className="text-ubc-blue text-sm font-medium">{profile.major}</p>
                                             {profile.homeRegion && <p className="text-gray-400 text-xs mt-0.5"><i className="fas fa-map-marker-alt mr-1"></i>{profile.homeRegion}</p>}
                                         </div>
@@ -151,7 +154,9 @@ export const DiscoveryView: React.FC = () => {
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-black/10"></div>
                                     
                                     <div className="absolute bottom-0 left-0 w-full p-6 text-white md:hidden">
-                                        <h2 className="text-3xl font-bold shadow-black drop-shadow-md">{activeCard.displayName}</h2>
+                                        <Link to={`/user/${activeCard.uid}`} className="text-3xl font-bold shadow-black drop-shadow-md hover:underline decoration-2 underline-offset-4 decoration-ubc-gold">
+                                            {activeCard.displayName}
+                                        </Link>
                                         <p className="text-lg opacity-90 drop-shadow-md">{activeCard.major}</p>
                                     </div>
                                 </div>
@@ -159,11 +164,19 @@ export const DiscoveryView: React.FC = () => {
                                 {/* Details Section */}
                                 <div className="flex-1 flex flex-col p-6 md:p-8 bg-white relative">
                                     <div className="hidden md:block mb-6 border-b border-gray-100 pb-4">
-                                        <h2 className="text-3xl font-bold text-gray-900">{activeCard.displayName}</h2>
+                                        <Link to={`/user/${activeCard.uid}`} className="text-3xl font-bold text-gray-900 hover:text-ubc-blue hover:underline decoration-4 underline-offset-4 decoration-ubc-gold transition-all">
+                                            {activeCard.displayName}
+                                        </Link>
                                         <p className="text-xl text-ubc-blue font-medium">{activeCard.major}</p>
                                     </div>
 
                                     <div className="flex-1 overflow-y-auto space-y-6">
+                                        {activeCard.bio && (
+                                             <div className="text-gray-600 italic">
+                                                "{activeCard.bio}"
+                                            </div>
+                                        )}
+
                                         {activeCard.homeRegion && (
                                             <div className="flex items-center text-gray-600 bg-gray-50 p-3 rounded-lg">
                                                 <i className="fas fa-map-marker-alt w-8 text-center text-ubc-gold text-lg"></i>
