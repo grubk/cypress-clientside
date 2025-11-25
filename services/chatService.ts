@@ -1,6 +1,6 @@
 
-
 import { Message } from '../types';
+import { DataRepository } from './dataRepository';
 
 type MessageListener = (message: Message) => void;
 
@@ -46,7 +46,37 @@ export class ChatService {
     public async getHistory(connectionId: string): Promise<Message[]> {
         return new Promise((resolve) => {
             setTimeout(() => {
-                // Mock history
+                // Feature 2: Special history for Bot
+                if (connectionId === 'cypress_bot') {
+                    resolve([
+                        {
+                            id: 'msg_bot_intro',
+                            senderId: 'cypress_bot',
+                            text: 'Hi! I am the Cypress Bot 🤖. Ask me "How to use" or about "Privacy"!',
+                            type: 'text',
+                            timestamp: Date.now() - 1000 * 60 * 60 * 24,
+                            status: 'sent'
+                        }
+                    ]);
+                    return;
+                }
+
+                // Fix 2: Special history for Team
+                if (connectionId === 'cypress_team') {
+                    resolve([
+                        {
+                            id: 'msg_team_intro',
+                            senderId: 'cypress_team',
+                            text: 'Welcome to Cypress! We are the development team. Please reply to this message with any feedback or suggestions you have for the app!',
+                            type: 'text',
+                            timestamp: Date.now() - 1000 * 60 * 60 * 5,
+                            status: 'sent'
+                        }
+                    ]);
+                    return;
+                }
+
+                // Mock history for others
                 const history: Message[] = [
                     {
                         id: 'msg_1',
@@ -55,18 +85,10 @@ export class ChatService {
                         type: 'text',
                         timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
                         status: 'sent'
-                    },
-                    {
-                        id: 'msg_2',
-                        senderId: connectionId,
-                        text: 'Have you been to Garibaldi Lake?',
-                        type: 'text',
-                        timestamp: Date.now() - 1000 * 60 * 60 * 2 + 5000,
-                        status: 'sent'
                     }
                 ];
                 resolve(history);
-            }, 500); // 500ms load time
+            }, 500); 
         });
     }
 
@@ -90,11 +112,69 @@ export class ChatService {
 
                 resolve(newMessage);
                 
-                // Trigger Bot Reply after 2 seconds
-                this.triggerBotReply(connectionId);
+                // Trigger Bot Reply
+                if (connectionId === 'cypress_bot') {
+                    this.triggerSupportBotReply(connectionId, text);
+                } else if (connectionId === 'cypress_team') {
+                    // Fix 2: Trigger Team Feedback Reply
+                    this.triggerTeamFeedbackReply(connectionId, senderId, text);
+                } else {
+                    this.triggerBotReply(connectionId);
+                }
 
             }, 300);
         });
+    }
+
+    private triggerSupportBotReply(connectionId: string, userText: string) {
+        setTimeout(() => {
+            let replyText = "I'm not sure I understand. Try asking about 'privacy', 'how to use', or 'matches'.";
+            const lower = userText.toLowerCase();
+
+            if (lower.includes('how to use') || lower.includes('help')) {
+                replyText = "It's easy! Go to 'Discover' to find students. Swipe Right to connect, Left to pass. If they swipe back, it's a match! 🌲";
+            } else if (lower.includes('privacy') || lower.includes('data')) {
+                replyText = "We take privacy seriously. Your data is currently stored locally on your device for this demo. You can toggle your visibility in Settings. 🔒";
+            } else if (lower.includes('match') || lower.includes('friend')) {
+                replyText = "Matches are based on shared majors, interests, and languages. Make sure your profile is complete to get the best matches! 🤝";
+            } else if (lower.includes('hello') || lower.includes('hi')) {
+                replyText = "Beep boop! Hello there! 👋";
+            }
+
+            const botMessage: Message = {
+                id: `msg_${Date.now()}_bot`,
+                senderId: connectionId,
+                text: replyText,
+                type: 'text',
+                timestamp: Date.now(),
+                status: 'sent'
+            };
+
+            const subs = this.listeners.get(connectionId);
+            if (subs) subs.forEach(cb => cb(botMessage));
+        }, 1500);
+    }
+
+    // Fix 2: Team Auto-Reply and Feedback Collection
+    private async triggerTeamFeedbackReply(connectionId: string, senderId: string, text: string) {
+        // Save Feedback to DB
+        await DataRepository.getInstance().saveFeedback(senderId, text);
+
+        setTimeout(() => {
+            const botMessage: Message = {
+                id: `msg_${Date.now()}_team`,
+                senderId: connectionId,
+                text: "Thanks for your feedback! We've recorded it in our database and will use it to improve Cypress. 🌲",
+                type: 'text',
+                timestamp: Date.now(),
+                status: 'sent'
+            };
+
+            const subs = this.listeners.get(connectionId);
+            if (subs) {
+                subs.forEach(cb => cb(botMessage));
+            }
+        }, 2000);
     }
 
     private triggerBotReply(connectionId: string) {

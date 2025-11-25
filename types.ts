@@ -56,6 +56,13 @@ export interface NotificationSettings {
     directMessages: boolean;
 }
 
+export interface AppNotification {
+    id: string;
+    message: string;
+    type: 'success' | 'info' | 'error';
+    duration?: number;
+}
+
 /* 
  * Represents the currently logged-in user.
  * Corresponds to UserModel in Architecture.

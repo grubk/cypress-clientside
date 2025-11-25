@@ -1,6 +1,6 @@
 
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { AuthView } from './views/AuthView';
@@ -22,6 +22,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const App: React.FC = () => {
+    // Demo Effect: Simulate receiving a friend request after a short delay
+    // This allows the user to see the "Popup" and "Red Dot" features in action
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const { isAuthenticated, simulateIncomingRequest } = useAppStore.getState();
+            if (isAuthenticated) {
+                simulateIncomingRequest();
+            }
+        }, 8000); // 8 seconds after load
+
+        return () => clearTimeout(timer);
+    }, []);
+
     return (
         <MemoryRouter>
             <Layout>

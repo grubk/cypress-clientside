@@ -29,7 +29,6 @@ export const ProfileView: React.FC = () => {
     const [stream, setStream] = useState<MediaStream | null>(null);
 
     // Detect mobile device for conditional camera button
-    // Safe check for SSR environments although this is client-side
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // Initialize local state from global store
@@ -94,17 +93,15 @@ export const ProfileView: React.FC = () => {
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                // Resize image to avoid localStorage quota limits and optimize performance
                 const img = new Image();
                 img.src = reader.result as string;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const maxSize = 300; // 300px limit
+                    const maxSize = 300; 
                     let width = img.width;
                     let height = img.height;
                     
-                    // Maintain aspect ratio
                     if (width > height) {
                         if (width > maxSize) {
                             height *= maxSize / width;
@@ -155,33 +152,27 @@ export const ProfileView: React.FC = () => {
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
             
-            // Set canvas to square for profile pic
             const size = Math.min(video.videoWidth, video.videoHeight);
             canvas.width = 300;
             canvas.height = 300;
             
-            // Calculate center crop
             const startX = (video.videoWidth - size) / 2;
             const startY = (video.videoHeight - size) / 2;
             
             if (context) {
-                // Draw cropped image to canvas
                 context.drawImage(video, startX, startY, size, size, 0, 0, 300, 300);
-                
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 handlePhotoSelect(dataUrl);
             }
         }
     };
 
-    // Attach stream to video element when active
     useEffect(() => {
         if (videoRef.current && stream) {
             videoRef.current.srcObject = stream;
         }
     }, [stream, isCameraActive]);
 
-    // Cleanup stream on unmount
     useEffect(() => {
         return () => {
             if (stream) {
@@ -190,23 +181,58 @@ export const ProfileView: React.FC = () => {
         };
     }, []);
 
-    // Predefined Avatar Galleries (Google Style)
+    // Avatar Galleries
     const initialsUrl = `https://ui-avatars.com/api/?name=${displayName}&background=random`;
+    
     const abstractAvatars = [
         "https://api.dicebear.com/7.x/bottts/svg?seed=Felix",
         "https://api.dicebear.com/7.x/bottts/svg?seed=Aneka",
         "https://api.dicebear.com/7.x/bottts/svg?seed=Zoe",
-        "https://api.dicebear.com/7.x/bottts/svg?seed=Jack",
-        "https://api.dicebear.com/7.x/bottts/svg?seed=Milo",
-        "https://api.dicebear.com/7.x/bottts/svg?seed=Sasha"
+        "https://api.dicebear.com/7.x/bottts/svg?seed=Jack"
     ];
+    
+    // Feature 1: More Styles
+    const personaAvatars = [
+        "https://api.dicebear.com/7.x/personas/svg?seed=Alex",
+        "https://api.dicebear.com/7.x/personas/svg?seed=Maria",
+        "https://api.dicebear.com/7.x/personas/svg?seed=John",
+        "https://api.dicebear.com/7.x/personas/svg?seed=Sophie"
+    ];
+
+    const pixelAvatars = [
+         "https://api.dicebear.com/7.x/pixel-art/svg?seed=Gamer",
+         "https://api.dicebear.com/7.x/pixel-art/svg?seed=Coder",
+         "https://api.dicebear.com/7.x/pixel-art/svg?seed=Artist",
+         "https://api.dicebear.com/7.x/pixel-art/svg?seed=UBC"
+    ];
+
     const colorAvatars = [
         `https://ui-avatars.com/api/?name=${displayName}&background=002145&color=fff`, // UBC Blue
         `https://ui-avatars.com/api/?name=${displayName}&background=E2A829&color=fff`, // UBC Gold
         `https://ui-avatars.com/api/?name=${displayName}&background=ef4444&color=fff`, // Red
         `https://ui-avatars.com/api/?name=${displayName}&background=10b981&color=fff`, // Green
-        `https://ui-avatars.com/api/?name=${displayName}&background=8b5cf6&color=fff`, // Purple
-        `https://ui-avatars.com/api/?name=${displayName}&background=f97316&color=fff`, // Orange
+    ];
+
+    // Feature 4: Pets, Animals, Landscapes (Unsplash Source)
+    const petsAvatars = [
+        "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=200&h=200", // Dog
+        "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=200&h=200", // Cat
+        "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=200&h=200", // Dog 2
+        "https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=200&h=200"  // Cat 2
+    ];
+
+    const animalAvatars = [
+        "https://images.unsplash.com/photo-1546182990-dced7187161b?auto=format&fit=crop&w=200&h=200", // Panda
+        "https://images.unsplash.com/photo-1535591273668-578e31182c4f?auto=format&fit=crop&w=200&h=200", // Fox
+        "https://images.unsplash.com/photo-1505624198937-c704aff7260c?auto=format&fit=crop&w=200&h=200", // Rabbit
+        "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=200&h=200"  // Koala
+    ];
+
+    const landscapeAvatars = [
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=200&h=200", // Mountain
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=200&h=200", // Beach
+        "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=200&h=200", // Forest
+        "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=200&h=200"  // Trees/Cypress
     ];
 
     return (
@@ -223,7 +249,6 @@ export const ProfileView: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Profile Photo Placeholder */}
                     <div className="flex justify-center mb-8">
                         <div 
                             className={`relative group ${isEditing ? 'cursor-pointer' : ''}`}
@@ -245,7 +270,6 @@ export const ProfileView: React.FC = () => {
                     </div>
 
                     <div className="space-y-6">
-                        {/* Display Name */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_name}</label>
                             {isEditing ? (
@@ -260,7 +284,6 @@ export const ProfileView: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Major */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_major}</label>
                             {isEditing ? (
@@ -279,7 +302,6 @@ export const ProfileView: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Bio */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_bio}</label>
                             {isEditing ? (
@@ -296,7 +318,6 @@ export const ProfileView: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Languages */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{t.profile_langs}</label>
                             {isEditing && <p className="text-xs text-gray-400 mb-2">{t.profile_langs_hint}</p>}
@@ -324,7 +345,6 @@ export const ProfileView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Interests */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{t.profile_interests}</label>
                             <div className="flex flex-wrap gap-2">
@@ -351,7 +371,6 @@ export const ProfileView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Home Region */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_region}</label>
                             {isEditing ? (
@@ -403,7 +422,6 @@ export const ProfileView: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in backdrop-blur-sm">
                     <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl animate-scale-in">
                         
-                        {/* Camera UI Mode */}
                         {isCameraActive ? (
                             <div className="flex flex-col items-center">
                                 <h3 className="text-xl font-bold text-gray-800 mb-4">{t.profile_photo_take}</h3>
@@ -433,7 +451,6 @@ export const ProfileView: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            /* Standard Gallery Mode */
                             <>
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-gray-800">{t.profile_photo_title}</h3>
@@ -446,12 +463,9 @@ export const ProfileView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    
-                                    {/* Custom Photo Upload Section */}
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">{t.profile_photo_custom}</h4>
                                         <div className="flex gap-3">
-                                            {/* File Input (Hidden) */}
                                             <input 
                                                 type="file" 
                                                 ref={fileInputRef} 
@@ -468,7 +482,6 @@ export const ProfileView: React.FC = () => {
                                                 {t.profile_photo_upload}
                                             </button>
 
-                                            {/* Mobile Only Camera Button */}
                                             {isMobile && (
                                                 <button 
                                                     onClick={startCamera}
@@ -481,10 +494,9 @@ export const ProfileView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Initials Section */}
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">{t.profile_photo_initials}</h4>
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-4 gap-4">
                                             {colorAvatars.map((url, index) => (
                                                 <button 
                                                     key={index}
@@ -497,10 +509,84 @@ export const ProfileView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Abstract Section */}
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Personality</h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {personaAvatars.map((url, index) => (
+                                                <button 
+                                                    key={index}
+                                                    onClick={() => handlePhotoSelect(url)}
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                >
+                                                    <img src={url} alt="Option" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                     <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Pixel Art</h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {pixelAvatars.map((url, index) => (
+                                                <button 
+                                                    key={index}
+                                                    onClick={() => handlePhotoSelect(url)}
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                >
+                                                    <img src={url} alt="Option" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Pets</h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {petsAvatars.map((url, index) => (
+                                                <button 
+                                                    key={index}
+                                                    onClick={() => handlePhotoSelect(url)}
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                >
+                                                    <img src={url} alt="Pet" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Wildlife</h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {animalAvatars.map((url, index) => (
+                                                <button 
+                                                    key={index}
+                                                    onClick={() => handlePhotoSelect(url)}
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                >
+                                                    <img src={url} alt="Animal" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Landscapes</h4>
+                                        <div className="grid grid-cols-4 gap-4">
+                                            {landscapeAvatars.map((url, index) => (
+                                                <button 
+                                                    key={index}
+                                                    onClick={() => handlePhotoSelect(url)}
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                >
+                                                    <img src={url} alt="Landscape" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">{t.profile_photo_abstract}</h4>
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-4 gap-4">
                                             {abstractAvatars.map((url, index) => (
                                                 <button 
                                                     key={index}

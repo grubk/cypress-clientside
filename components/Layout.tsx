@@ -1,8 +1,43 @@
 
+
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Link, useLocation } from 'react-router-dom';
 import { TRANSLATIONS } from '../utils/translations';
+
+/*
+ * Toast Component
+ */
+const ToastContainer: React.FC = () => {
+    const { notifications, removeNotification } = useAppStore();
+
+    if (notifications.length === 0) return null;
+
+    return (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none">
+            {notifications.map((note) => (
+                <div 
+                    key={note.id}
+                    className={`
+                        pointer-events-auto rounded-xl shadow-lg p-4 flex items-center gap-3 animate-fade-in-down transition-all
+                        ${note.type === 'success' ? 'bg-green-500 text-white' : 
+                          note.type === 'error' ? 'bg-red-500 text-white' : 
+                          'bg-ubc-blue text-white'}
+                    `}
+                >
+                    <i className={`fas ${
+                        note.type === 'success' ? 'fa-check-circle' : 
+                        note.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'
+                    }`}></i>
+                    <p className="text-sm font-medium flex-1">{note.message}</p>
+                    <button onClick={() => removeNotification(note.id)} className="opacity-70 hover:opacity-100">
+                        <i className="fas fa-times"></i>
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 /*
  * Layout Component
@@ -11,7 +46,7 @@ import { TRANSLATIONS } from '../utils/translations';
  * Desktop: Sidebar Navigation, fills screen with dashboard layout.
  */
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { isAuthenticated, logout, uiLanguage } = useAppStore();
+    const { isAuthenticated, logout, uiLanguage, incomingRequests } = useAppStore();
     const location = useLocation();
     const t = TRANSLATIONS[uiLanguage];
 
@@ -19,9 +54,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     const isActive = (path: string) => location.pathname === path ? 'text-ubc-blue' : 'text-gray-400';
     const isActiveDesktop = (path: string) => location.pathname === path ? 'bg-blue-800/50 border-l-4 border-ubc-gold' : 'hover:bg-blue-800/30';
 
+    const hasRequests = incomingRequests.length > 0;
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row h-screen overflow-hidden">
-            
+            <ToastContainer />
+
             {/* Desktop/Laptop Sidebar Navigation */}
             {isAuthenticated && (
                 <aside className="hidden md:flex flex-col w-64 bg-ubc-blue text-white shadow-xl z-20 shrink-0">
@@ -37,9 +75,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             <i className="fas fa-fire w-6 text-center"></i>
                             <span className="font-medium">{t.nav_discover}</span>
                         </Link>
-                        <Link to="/connections" className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${isActiveDesktop('/connections')}`}>
-                            <i className="fas fa-comments w-6 text-center"></i>
+                        <Link to="/connections" className={`relative flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${isActiveDesktop('/connections')}`}>
+                            <div className="relative">
+                                <i className="fas fa-comments w-6 text-center"></i>
+                                {hasRequests && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-ubc-blue"></span>}
+                            </div>
                             <span className="font-medium">{t.nav_chats}</span>
+                            {hasRequests && <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{incomingRequests.length}</span>}
                         </Link>
                         <Link to="/profile" className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${isActiveDesktop('/profile')}`}>
                             <i className="fas fa-user w-6 text-center"></i>
@@ -67,8 +109,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="flex-1 flex flex-col h-full relative overflow-hidden">
                 
                 {/* Mobile Header */}
-                <header className="md:hidden bg-ubc-blue text-white p-4 text-center font-bold text-xl sticky top-0 z-50 shadow-md shrink-0">
-                    Cypress
+                <header className="md:hidden bg-ubc-blue text-white p-4 text-center font-bold text-xl sticky top-0 z-50 shadow-md shrink-0 flex justify-between items-center">
+                    <div className="w-8"></div> {/* Spacer */}
+                    <span>Cypress</span>
+                    <div className="w-8 flex justify-end">
+                        {/* Mobile Notification Bell Icon placeholder */}
+                    </div>
                 </header>
 
                 {/* Content Frame */}
@@ -86,8 +132,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             <i className="fas fa-fire text-xl mb-1"></i>
                             <span className="text-xs">{t.nav_discover}</span>
                         </Link>
-                        <Link to="/connections" className={`flex flex-col items-center ${isActive('/connections')}`}>
-                            <i className="fas fa-comments text-xl mb-1"></i>
+                        <Link to="/connections" className={`relative flex flex-col items-center ${isActive('/connections')}`}>
+                            <div className="relative">
+                                <i className="fas fa-comments text-xl mb-1"></i>
+                                {hasRequests && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
+                            </div>
                             <span className="text-xs">{t.nav_chats}</span>
                         </Link>
                         <Link to="/profile" className={`flex flex-col items-center ${isActive('/profile')}`}>

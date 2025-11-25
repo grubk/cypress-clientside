@@ -1,5 +1,4 @@
 
-
 import { UserModel, MatchProfileModel, ConnectionModel, Major, Interest, Language } from '../types';
 
 /*
@@ -16,13 +15,17 @@ import { UserModel, MatchProfileModel, ConnectionModel, Major, Interest, Languag
  */
 export class DataRepository {
     private static instance: DataRepository;
-    private readonly STORAGE_KEY = 'cypress_users_db_v1';
+    // UPDATED KEY: Changing this wipes previous data (Fix 1)
+    private readonly STORAGE_KEY = 'cypress_users_db_v2';
     
     // Mock Database
     private mockUser: UserModel | null = null;
     
     // Simulating a database table of registered users
     private registeredUsers: Map<string, UserModel> = new Map();
+
+    // Simulating a Feedback Table
+    private feedbackLog: { userId: string, text: string, timestamp: number }[] = [];
 
     private mockMatches: MatchProfileModel[] = [
         {
@@ -66,24 +69,23 @@ export class DataRepository {
         }
     ];
 
+    // Mock "Pending Requests" for the current user
+    // Fix 2: Changed to Cypress Team
+    private incomingRequests: MatchProfileModel[] = [
+        {
+            uid: 'cypress_team',
+            displayName: 'Cypress Team',
+            major: Major.COMPUTER_SCIENCE,
+            bio: "We are the development team behind Cypress. We'd love to hear your thoughts!",
+            commonInterests: [Interest.CODING, Interest.STARTUPS],
+            homeRegion: 'UBC Campus',
+            languages: [Language.ENGLISH],
+            photoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=200&h=200'
+        }
+    ];
+
     private constructor() {
         this.loadDatabase();
-        this.cleanDuplicateAccounts(); // Force cleanup on init
-
-        // Pre-seed the "Database" with a valid user if not present (e.g. first run)
-        const seedEmail = 'valid@student.ubc.ca';
-        if (!this.registeredUsers.has(seedEmail)) {
-            const seedUser = this.generateNewUser(seedEmail);
-            seedUser.uid = 'user_1';
-            seedUser.displayName = 'John Doe';
-            seedUser.major = Major.COMPUTER_SCIENCE;
-            seedUser.interests = [Interest.CODING, Interest.HIKING];
-            seedUser.homeRegion = 'Burnaby, BC';
-            seedUser.isVerified = true;
-            
-            this.registeredUsers.set(seedEmail, seedUser);
-            this.saveDatabase();
-        }
     }
 
     private loadDatabase() {
@@ -107,63 +109,6 @@ export class DataRepository {
         } catch (e) {
             console.error("Failed to save user database", e);
         }
-    }
-
-    /**
-     * Cleans up duplicate accounts by normalizing emails to lowercase.
-     * Keeps the most recently created account (based on UID timestamp if available)
-     * and strictly removes others.
-     */
-    private cleanDuplicateAccounts() {
-        const cleanedMap = new Map<string, UserModel>();
-        let hasChanges = false;
-        const seenEmails = new Set<string>();
-
-        // Convert current map to array to sort/process
-        const entries = Array.from(this.registeredUsers.entries());
-
-        for (const [key, user] of entries) {
-            const normalizedEmail = user.email.toLowerCase().trim();
-            
-            // If we've already processed this email in this pass, check timestamps
-            if (seenEmails.has(normalizedEmail)) {
-                const existingUser = cleanedMap.get(normalizedEmail);
-                if (existingUser) {
-                    const existingTime = this.extractTimestampFromUid(existingUser.uid);
-                    const currentTime = this.extractTimestampFromUid(user.uid);
-
-                    if (currentTime > existingTime) {
-                        // Current is newer, replace existing
-                        cleanedMap.set(normalizedEmail, user);
-                    }
-                    // Else ignore current (duplicate/older)
-                    hasChanges = true;
-                }
-            } else {
-                // First time seeing this email
-                seenEmails.add(normalizedEmail);
-                cleanedMap.set(normalizedEmail, user);
-                
-                // If the map key was different from normalized email, that's a change
-                if (key !== normalizedEmail) hasChanges = true;
-            }
-        }
-
-        if (hasChanges || cleanedMap.size !== this.registeredUsers.size) {
-            this.registeredUsers = cleanedMap;
-            this.saveDatabase();
-            console.debug("Database cleaned of duplicates/normalized.");
-        }
-    }
-
-    private extractTimestampFromUid(uid: string): number {
-        try {
-            const parts = uid.split('_');
-            if (parts.length >= 2) {
-                return parseInt(parts[1], 10);
-            }
-        } catch (e) {}
-        return 0;
     }
 
     /* Helper to create a consistent new user object */
@@ -220,35 +165,17 @@ export class DataRepository {
                     return;
                 }
 
-                // Force clean before login to ensure valid state
-                this.cleanDuplicateAccounts();
-
-                let user = this.registeredUsers.get(normalizedEmail);
+                const user = this.registeredUsers.get(normalizedEmail);
                 
-                // DEMO FIX: If user doesn't exist in local storage (new device), 
-                // auto-provision them to simulate cloud retrieval.
                 if (!user) {
-                    user = this.generateNewUser(normalizedEmail);
-                    user.isVerified = true; // Assume verified if they are "logging in"
-                    this.registeredUsers.set(normalizedEmail, user);
-                    this.saveDatabase();
+                    // Fail if account doesn't exist (Strict Login)
+                    reject(new Error("Account not found. Please sign up."));
+                    return;
                 }
 
                 this.mockUser = user;
-                
-                // Ensure settings/privacy exist for legacy users from previous sessions
-                if (!this.mockUser.settings) {
-                    this.mockUser.settings = {
-                        general: true,
-                        dailyMatches: true,
-                        directMessages: true
-                    };
-                }
-                if (this.mockUser.isSearchable === undefined) {
-                    this.mockUser.isSearchable = true;
-                }
                 resolve(this.mockUser);
-            }, 1200); // Increased delay for animation
+            }, 1000); 
         });
     }
 
@@ -271,9 +198,6 @@ export class DataRepository {
                     return;
                 }
 
-                // Refresh cleanup to ensure we don't have this user lurking
-                this.cleanDuplicateAccounts();
-
                 if (this.registeredUsers.has(normalizedEmail)) {
                     reject(new Error("The email is already been used."));
                     return;
@@ -281,6 +205,7 @@ export class DataRepository {
 
                 // Create new user using shared helper
                 const newUser = this.generateNewUser(normalizedEmail);
+                newUser.isVerified = true;
 
                 // Save to "Database"
                 this.registeredUsers.set(normalizedEmail, newUser);
@@ -288,7 +213,7 @@ export class DataRepository {
                 this.saveDatabase();
 
                 resolve(newUser);
-            }, 2000); // Increased delay to show off the animation
+            }, 1500); 
         });
     }
 
@@ -321,7 +246,7 @@ export class DataRepository {
      * Discovery: Fetch Queue
      * Specification: Retrieves the prioritized match queue for the active user.
      * Logic: Sorts potential matches to prioritize those with shared languages.
-     * Update: Now includes actual registered users so they can be "posted" to others' feed.
+     * Fix 2: Explicitly ensure registered users are included.
      */
     public async getMatchQueue(): Promise<MatchProfileModel[]> {
         return new Promise((resolve) => {
@@ -332,9 +257,18 @@ export class DataRepository {
                 // 2. Mix in real registered users (excluding self)
                 if (this.mockUser) {
                     const myUid = this.mockUser.uid;
+                    
+                    // Force refresh from localStorage in case another tab updated it
+                    this.loadDatabase();
+
                     this.registeredUsers.forEach(user => {
-                        // Don't show myself, and check privacy setting
-                        if (user.uid !== myUid && user.isSearchable) {
+                        // Don't show myself
+                        if (user.uid === myUid) return;
+                        
+                        // Check privacy setting (default true if undefined)
+                        const isVisible = user.isSearchable !== false;
+                        
+                        if (isVisible) {
                             const commonInterests = user.interests.filter(i => 
                                 this.mockUser?.interests.includes(i)
                             );
@@ -364,7 +298,7 @@ export class DataRepository {
                     });
                 }
                 
-                // Deduplicate by UID (in case a registered user is also a mock user)
+                // Deduplicate by UID
                 const uniqueMatches = Array.from(new Map(matches.map(m => [m.uid, m])).values());
                 
                 resolve(uniqueMatches);
@@ -374,8 +308,6 @@ export class DataRepository {
 
     /* 
      * Discovery: Search
-     * Specification: Searches the database for users matching the query who have privacy enabled.
-     * Update: Now supports searching by Email.
      */
     public async searchUsers(query: string): Promise<MatchProfileModel[]> {
         return new Promise((resolve) => {
@@ -388,20 +320,20 @@ export class DataRepository {
 
                 const results: MatchProfileModel[] = [];
                 const currentUserUid = this.mockUser?.uid;
+                
+                // Refresh data
+                this.loadDatabase();
 
-                // Search through registered users (simulating backend query)
+                // Search through registered users
                 this.registeredUsers.forEach((user) => {
-                    // Privacy Check
                     if (user.isSearchable === false) return;
                     if (user.uid === currentUserUid) return;
 
-                    // Match Logic (Name, Major, OR Email)
                     const nameMatch = user.displayName.toLowerCase().includes(lowerQuery);
                     const majorMatch = user.major?.toLowerCase().includes(lowerQuery);
                     const emailMatch = user.email.toLowerCase().includes(lowerQuery);
 
                     if (nameMatch || majorMatch || emailMatch) {
-                        // Calculate common interests/langs for the preview model
                         const commonInterests = user.interests.filter(i => 
                             this.mockUser?.interests.includes(i)
                         );
@@ -409,7 +341,7 @@ export class DataRepository {
                         results.push({
                             uid: user.uid,
                             displayName: user.displayName,
-                            major: user.major || Major.ARTS, // Fallback
+                            major: user.major || Major.ARTS,
                             bio: user.bio,
                             commonInterests: commonInterests,
                             languages: user.languages,
@@ -419,14 +351,13 @@ export class DataRepository {
                     }
                 });
 
-                // Also search the mock matches array (for demo data consistency)
+                // Also search the mock matches array
                 this.mockMatches.forEach((match) => {
                     if (match.uid === currentUserUid) return;
                     const nameMatch = match.displayName.toLowerCase().includes(lowerQuery);
                     const majorMatch = match.major.toLowerCase().includes(lowerQuery);
                     
                     if (nameMatch || majorMatch) {
-                        // Avoid duplicates if mock match is also in registeredUsers
                         if (!results.some(r => r.uid === match.uid)) {
                             results.push(match);
                         }
@@ -438,34 +369,101 @@ export class DataRepository {
         });
     }
 
-    /* 
-     * Discovery: Swipe Action
-     * Specification: Records a swipe (Connect/Dismiss) logic.
-     */
     public async recordSwipe(targetUid: string, action: 'CONNECT' | 'DISMISS'): Promise<void> {
         return new Promise((resolve) => {
             setTimeout(() => {
                 console.log(`Recorded ${action} on ${targetUid}`);
-                // In a real app, if action is CONNECT, check if mutual, then add to connections.
-                // For demo, we just log it.
                 resolve();
             }, 300);
+        });
+    }
+
+    public async getIncomingRequests(): Promise<MatchProfileModel[]> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve([...this.incomingRequests]);
+            }, 400);
+        });
+    }
+
+    public async respondToRequest(targetUid: string, action: 'ACCEPT' | 'DECLINE'): Promise<MatchProfileModel | null> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const requestIndex = this.incomingRequests.findIndex(r => r.uid === targetUid);
+                let acceptedUser: MatchProfileModel | null = null;
+
+                if (requestIndex !== -1) {
+                    if (action === 'ACCEPT') {
+                        acceptedUser = this.incomingRequests[requestIndex];
+
+                        // FIX 3: Add to registeredUsers to ensure getUser() finds them later
+                        // Even if they are just a "mock" match, we promote them to the persistent store
+                        // so they don't disappear from the connections list.
+                        const pseudoEmail = `${targetUid}@simulated.com`;
+                        if (!this.registeredUsers.has(pseudoEmail) && acceptedUser) {
+                            const persistedProfile: UserModel = {
+                                uid: acceptedUser.uid,
+                                email: pseudoEmail,
+                                displayName: acceptedUser.displayName,
+                                major: acceptedUser.major,
+                                bio: acceptedUser.bio,
+                                interests: acceptedUser.commonInterests,
+                                languages: acceptedUser.languages || [],
+                                homeRegion: acceptedUser.homeRegion || '',
+                                isVerified: true,
+                                isSearchable: true,
+                                photoUrl: acceptedUser.photoUrl,
+                                settings: { general: true, dailyMatches: true, directMessages: true }
+                            };
+                            this.registeredUsers.set(pseudoEmail, persistedProfile);
+                            // We don't necessarily need to saveDatabase() for this session-only fix, 
+                            // but it helps if we reload.
+                        }
+                    }
+                    this.incomingRequests.splice(requestIndex, 1);
+                }
+                resolve(acceptedUser);
+            }, 300);
+        });
+    }
+
+    public async simulateIncomingRequest(fakeUser: MatchProfileModel): Promise<void> {
+        return new Promise((resolve) => {
+            if (!this.incomingRequests.some(r => r.uid === fakeUser.uid)) {
+                this.incomingRequests.push(fakeUser);
+            }
+            resolve();
+        });
+    }
+
+    // Fix 2: Collect Feedback
+    public async saveFeedback(userId: string, text: string): Promise<void> {
+        return new Promise((resolve) => {
+            this.feedbackLog.push({
+                userId,
+                text,
+                timestamp: Date.now()
+            });
+            console.log("Feedback Recorded:", text);
+            resolve();
         });
     }
 
     /* 
      * Connections: Get Mutuals
      * Specification: Returns list of mutual connections.
+     * Fix 1: Bot photo same as App Icon (using a similar tree icon or high quality image)
      */
     public async getConnections(): Promise<ConnectionModel[]> {
         return new Promise((resolve) => {
             setTimeout(() => {
                 resolve([
                     {
-                        uid: 'user_99',
-                        displayName: 'Jennifer Wang',
-                        major: Major.KINESIOLOGY,
-                        photoUrl: 'https://picsum.photos/203/203',
+                        uid: 'cypress_bot',
+                        displayName: 'Cypress Bot',
+                        major: Major.COMPUTER_SCIENCE,
+                        // Fix 1: Updated to a tree image to match app logo concept
+                        photoUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=200&h=200',
                         timestamp: Date.now()
                     }
                 ]);
@@ -475,12 +473,44 @@ export class DataRepository {
 
     /*
      * General: Get User by ID
-     * Specification: Fetches public profile of a user. Used for Chat Header and Public Profile.
      */
     public async getUser(uid: string): Promise<Partial<UserModel>> {
         return new Promise((resolve) => {
             setTimeout(() => {
+                // 0. Check for Bot
+                if (uid === 'cypress_bot') {
+                    resolve({
+                        uid: 'cypress_bot',
+                        displayName: 'Cypress Bot',
+                        major: Major.COMPUTER_SCIENCE,
+                        bio: "I'm here to help you navigate Cypress! Ask me about privacy or how to use the app.",
+                        photoUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=200&h=200',
+                        interests: [Interest.CODING, Interest.STARTUPS],
+                        homeRegion: 'Server Room',
+                        languages: [Language.ENGLISH]
+                    });
+                    return;
+                }
+
+                // Check for Team
+                if (uid === 'cypress_team') {
+                    resolve({
+                        uid: 'cypress_team',
+                        displayName: 'Cypress Team',
+                        major: Major.COMPUTER_SCIENCE,
+                        bio: "We build Cypress for you. Let us know how we can improve!",
+                        photoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=200&h=200',
+                        interests: [Interest.CODING],
+                        homeRegion: 'UBC',
+                        languages: [Language.ENGLISH]
+                    });
+                    return;
+                }
+
                 // 1. Try to find in registered users
+                this.loadDatabase(); // Ensure fresh
+                
+                // Search values because keys are emails
                 for (const user of this.registeredUsers.values()) {
                     if (user.uid === uid) {
                         resolve(user);
@@ -497,19 +527,33 @@ export class DataRepository {
                         major: match.major,
                         bio: match.bio,
                         photoUrl: match.photoUrl,
-                        interests: match.commonInterests, // Approximate for mock
+                        interests: match.commonInterests, 
                         homeRegion: match.homeRegion,
                         languages: match.languages
                     });
                     return;
                 }
+
+                // 3. Try incoming requests
+                const request = this.incomingRequests.find(m => m.uid === uid);
+                if (request) {
+                    resolve({
+                        uid: request.uid,
+                        displayName: request.displayName,
+                        major: request.major,
+                        bio: request.bio,
+                        photoUrl: request.photoUrl,
+                        interests: request.commonInterests,
+                        homeRegion: request.homeRegion,
+                        languages: request.languages
+                    });
+                    return;
+                }
                 
-                // 3. Fallback/Demo connection
                 resolve({
                     uid: uid,
-                    displayName: uid === 'user_99' ? 'Jennifer Wang' : 'Unknown User',
-                    photoUrl: uid === 'user_99' ? 'https://picsum.photos/203/203' : undefined,
-                    major: uid === 'user_99' ? Major.KINESIOLOGY : Major.ARTS
+                    displayName: 'Unknown User',
+                    major: Major.ARTS
                 });
             }, 300);
         });
