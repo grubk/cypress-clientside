@@ -1,5 +1,3 @@
-
-
 import { create } from 'zustand';
 import { UserModel, MatchProfileModel, ConnectionModel, Language, AppNotification, Major } from '../types';
 import { DataRepository } from '../services/dataRepository';
@@ -12,6 +10,7 @@ interface AppState {
     // State
     currentUser: UserModel | null;
     isAuthenticated: boolean;
+    isSessionChecked: boolean; // Flag to indicate if we've checked for an existing session
     matchQueue: MatchProfileModel[];
     incomingRequests: MatchProfileModel[];
     searchResults: MatchProfileModel[]; // For Search feature
@@ -22,6 +21,7 @@ interface AppState {
     uiLanguage: Language;
 
     // Actions
+    checkSession: () => Promise<void>; // Init action
     login: (email: string) => Promise<void>;
     signup: (email: string, password: string) => Promise<void>;
     logout: () => void;
@@ -48,6 +48,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
     currentUser: null,
     isAuthenticated: false,
+    isSessionChecked: false,
     matchQueue: [],
     incomingRequests: [],
     searchResults: [],
@@ -56,6 +57,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     isLoading: false,
     error: null,
     uiLanguage: Language.ENGLISH,
+
+    checkSession: async () => {
+        try {
+            const repo = DataRepository.getInstance();
+            const user = await repo.restoreSession();
+            if (user) {
+                set({ currentUser: user, isAuthenticated: true });
+                // Optimistically fetch data
+                get().fetchIncomingRequests();
+            }
+        } catch (err) {
+            console.error("Session restore failed", err);
+        } finally {
+            set({ isSessionChecked: true });
+        }
+    },
 
     login: async (email: string) => {
         set({ isLoading: true, error: null });
@@ -81,7 +98,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    logout: () => {
+    logout: async () => {
+        const repo = DataRepository.getInstance();
+        await repo.logout();
         set({ currentUser: null, isAuthenticated: false, matchQueue: [], connections: [], searchResults: [], incomingRequests: [], notifications: [] });
     },
 

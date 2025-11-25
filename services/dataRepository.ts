@@ -1,4 +1,3 @@
-
 import { UserModel, MatchProfileModel, ConnectionModel, Major, Interest, Language } from '../types';
 
 /*
@@ -15,8 +14,8 @@ import { UserModel, MatchProfileModel, ConnectionModel, Major, Interest, Languag
  */
 export class DataRepository {
     private static instance: DataRepository;
-    // UPDATED KEY: Changing this wipes previous data (Fix 1)
     private readonly STORAGE_KEY = 'cypress_users_db_v2';
+    private readonly SESSION_KEY = 'cypress_session_uid_v1';
     
     // Mock Database
     private mockUser: UserModel | null = null;
@@ -26,6 +25,9 @@ export class DataRepository {
 
     // Simulating a Feedback Table
     private feedbackLog: { userId: string, text: string, timestamp: number }[] = [];
+
+    // Tree Icon SVG Data URI (Updated for nicer look)
+    private readonly TREE_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjMDAyMTQ1IiBkPSJNMzY4LjUgMzYwSDQ0OGMtMTguNiAwLTMwLjktMjEuMi0xOS45LTM0LjRMMjcyLjggMjQuMmMtOS4zLTExLjEtMjYuNC0xMS4xtmMzNS43IDBMNDMuOSAzMjUuNmMtMTEgMTMuMiAyMy40IDM0LjQgMTkuOSAzNC40aDc5LjVsLTk1LjIgMTQzLjJjLTEwLjkgMTYuNCAuOCAzOC44IDIwLjUgMzguOGgxMDcuNHY3MS40YzAgMTAuMyA4LjMgMTguNiAxOC42IDE4LjZoMzJjMTAuMyAwIDE4LjYtOC4zIDE4LjYtMTguNnYtNzEuNGgxMDcuNGMxOS43IDAgMzEuNC0yMi40IDIwLjUtMzguOEwzNjguNSAzNjB6Ii8+PC9zdmc+";
 
     private mockMatches: MatchProfileModel[] = [
         {
@@ -70,7 +72,6 @@ export class DataRepository {
     ];
 
     // Mock "Pending Requests" for the current user
-    // Fix 2: Changed to Cypress Team
     private incomingRequests: MatchProfileModel[] = [
         {
             uid: 'cypress_team',
@@ -151,6 +152,50 @@ export class DataRepository {
         return DataRepository.instance;
     }
 
+    /*
+     * Session Management: Restore
+     */
+    public async restoreSession(): Promise<UserModel | null> {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const uid = localStorage.getItem(this.SESSION_KEY);
+                if (!uid) {
+                    resolve(null);
+                    return;
+                }
+
+                // Ensure DB is loaded
+                if (this.registeredUsers.size === 0) {
+                    this.loadDatabase();
+                }
+
+                // Find user in registered users
+                for (const user of this.registeredUsers.values()) {
+                    if (user.uid === uid) {
+                        this.mockUser = user;
+                        resolve(user);
+                        return;
+                    }
+                }
+                
+                // If not found (e.g. wiped data), clear session
+                localStorage.removeItem(this.SESSION_KEY);
+                resolve(null);
+            }, 300);
+        });
+    }
+
+    /*
+     * Authentication: Logout
+     */
+    public async logout(): Promise<void> {
+        return new Promise((resolve) => {
+            this.mockUser = null;
+            localStorage.removeItem(this.SESSION_KEY);
+            resolve();
+        });
+    }
+
     /* 
      * Authentication: Login
      * Specification: Authenticates user against mock DB. Throws error if email doesn't end in ubc.ca
@@ -174,6 +219,7 @@ export class DataRepository {
                 }
 
                 this.mockUser = user;
+                localStorage.setItem(this.SESSION_KEY, user.uid); // Persist Session
                 resolve(this.mockUser);
             }, 1000); 
         });
@@ -211,6 +257,8 @@ export class DataRepository {
                 this.registeredUsers.set(normalizedEmail, newUser);
                 this.mockUser = newUser;
                 this.saveDatabase();
+                
+                localStorage.setItem(this.SESSION_KEY, newUser.uid); // Persist Session
 
                 resolve(newUser);
             }, 1500); 
@@ -452,7 +500,6 @@ export class DataRepository {
     /* 
      * Connections: Get Mutuals
      * Specification: Returns list of mutual connections.
-     * Fix 1: Bot photo same as App Icon (using a similar tree icon or high quality image)
      */
     public async getConnections(): Promise<ConnectionModel[]> {
         return new Promise((resolve) => {
@@ -462,8 +509,8 @@ export class DataRepository {
                         uid: 'cypress_bot',
                         displayName: 'Cypress Bot',
                         major: Major.COMPUTER_SCIENCE,
-                        // Fix 1: Updated to a tree image to match app logo concept
-                        photoUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=200&h=200',
+                        // Fix: Updated to Tree Icon SVG
+                        photoUrl: this.TREE_ICON_URL,
                         timestamp: Date.now()
                     }
                 ]);
@@ -484,7 +531,7 @@ export class DataRepository {
                         displayName: 'Cypress Bot',
                         major: Major.COMPUTER_SCIENCE,
                         bio: "I'm here to help you navigate Cypress! Ask me about privacy or how to use the app.",
-                        photoUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=200&h=200',
+                        photoUrl: this.TREE_ICON_URL,
                         interests: [Interest.CODING, Interest.STARTUPS],
                         homeRegion: 'Server Room',
                         languages: [Language.ENGLISH]

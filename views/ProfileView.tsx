@@ -222,10 +222,10 @@ export const ProfileView: React.FC = () => {
     ];
 
     const animalAvatars = [
-        "https://images.unsplash.com/photo-1546182990-dced7187161b?auto=format&fit=crop&w=200&h=200", // Panda
-        "https://images.unsplash.com/photo-1535591273668-578e31182c4f?auto=format&fit=crop&w=200&h=200", // Fox
-        "https://images.unsplash.com/photo-1505624198937-c704aff7260c?auto=format&fit=crop&w=200&h=200", // Rabbit
-        "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=200&h=200"  // Koala
+        "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f43c.png", // Panda
+        "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f98a.png", // Fox
+        "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f430.png", // Rabbit
+        "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f428.png"  // Koala
     ];
 
     const landscapeAvatars = [
@@ -555,15 +555,15 @@ export const ProfileView: React.FC = () => {
                                     </div>
 
                                     <div>
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Wildlife</h4>
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Wildlife (Cartoon)</h4>
                                         <div className="grid grid-cols-4 gap-4">
                                             {animalAvatars.map((url, index) => (
                                                 <button 
                                                     key={index}
                                                     onClick={() => handlePhotoSelect(url)}
-                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50"
+                                                    className="aspect-square rounded-full overflow-hidden hover:ring-4 ring-ubc-blue/30 transition-all active:scale-95 bg-gray-50 p-2"
                                                 >
-                                                    <img src={url} alt="Animal" className="w-full h-full object-cover" />
+                                                    <img src={url} alt="Animal" className="w-full h-full object-contain" />
                                                 </button>
                                             ))}
                                         </div>
