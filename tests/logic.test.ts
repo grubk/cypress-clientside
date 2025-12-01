@@ -14,19 +14,11 @@ describe('DataRepository Mock Logic', () => {
         repo = DataRepository.getInstance();
     });
 
-    test('Login should validate ubc email domain', async () => {
-        // Test invalid email
-        try {
-            await repo.login('hacker@gmail.com');
-            throw new Error('Should have failed');
-        } catch (e: any) {
-            expect(e.message).toContain('@student.ubc.ca');
-        }
-
-        // Test valid email
-        const user = await repo.login('valid@student.ubc.ca');
+    test('Login should accept any valid email', async () => {
+        // Test that any valid email is accepted
+        const user = await repo.loginWithPassword('user@example.com', 'password123');
         expect(user).toBeDefined();
-        expect(user.email).toBe('valid@student.ubc.ca');
+        expect(user.email).toBe('user@example.com');
     });
 
     test('Match Queue should return candidates', async () => {
