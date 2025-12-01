@@ -1,5 +1,7 @@
 {
   "name": "Cypress",
   "description": "A matchmaking application for UBC students to find friends based on majors and interests.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

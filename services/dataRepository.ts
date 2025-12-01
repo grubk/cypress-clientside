@@ -1,148 +1,21 @@
 import { UserModel, MatchProfileModel, ConnectionModel, Major, Interest, Language } from '../types';
+import { supabase } from './supabaseClient';
 
 /*
  * DataRepository
  * 
  * Abstraction Function:
- * Acts as the single source of truth for the client, abstracting network calls to Firebase.
- * For this implementation, it uses LocalStorage to persist data across sessions/reloads,
- * simulating a persistent database.
- * 
- * Rep Invariant:
- * - Always returns Promises to simulate network latency.
- * - Enforces uniqueness of UIDs in mock databases.
+ * Acts as the single source of truth for the client, abstracting network calls to Supabase.
  */
 export class DataRepository {
     private static instance: DataRepository;
-    private readonly STORAGE_KEY = 'cypress_users_db_v2';
-    private readonly SESSION_KEY = 'cypress_session_uid_v1';
     
-    // Mock Database
-    private mockUser: UserModel | null = null;
-    
-    // Simulating a database table of registered users
-    private registeredUsers: Map<string, UserModel> = new Map();
+    // Cache the current user to reduce redundant DB calls
+    private currentUserCache: UserModel | null = null;
 
-    // Simulating a Feedback Table
-    private feedbackLog: { userId: string, text: string, timestamp: number }[] = [];
-
-    // Tree Icon SVG Data URI (Updated for nicer look)
     private readonly TREE_ICON_URL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjMDAyMTQ1IiBkPSJNMzY4LjUgMzYwSDQ0OGMtMTguNiAwLTMwLjktMjEuMi0xOS45LTM0LjRMMjcyLjggMjQuMmMtOS4zLTExLjEtMjYuNC0xMS4xtmMzNS43IDBMNDMuOSAzMjUuNmMtMTEgMTMuMiAyMy40IDM0LjQgMTkuOSAzNC40aDc5LjVsLTk1LjIgMTQzLjJjLTEwLjkgMTYuNCAuOCAzOC44IDIwLjUgMzguOGgxMDcuNHY3MS40YzAgMTAuMyA4LjMgMTguNiAxOC42IDE4LjZoMzJjMTAuMyAwIDE4LjYtOC4zIDE4LjYtMTguNnYtNzEuNGgxMDcuNGMxOS43IDAgMzEuNC0yMi40IDIwLjUtMzguOEwzNjguNSAzNjB6Ii8+PC9zdmc+";
 
-    private mockMatches: MatchProfileModel[] = [
-        {
-            uid: 'user_2',
-            displayName: 'Sarah Jenkins',
-            major: Major.COMMERCE,
-            bio: "Love exploring new coffee shops and hiking on weekends!",
-            commonInterests: [Interest.HIKING, Interest.STARTUPS],
-            homeRegion: 'Vancouver, BC',
-            languages: [Language.ENGLISH, Language.FRENCH],
-            photoUrl: 'https://picsum.photos/200/200'
-        },
-        {
-            uid: 'user_3',
-            displayName: 'David Chen',
-            major: Major.ENGINEERING,
-            bio: "Building things and breaking them. Gamer at heart.",
-            commonInterests: [Interest.VIDEO_GAMES, Interest.CODING],
-            homeRegion: 'Toronto, ON',
-            languages: [Language.ENGLISH, Language.MANDARIN_SIMPLIFIED],
-            photoUrl: 'https://picsum.photos/201/201'
-        },
-        {
-            uid: 'user_4',
-            displayName: 'Emily Ross',
-            major: Major.ARTS,
-            bio: "Art history major. Always down for a museum trip.",
-            commonInterests: [Interest.PAINTING],
-            homeRegion: 'Seattle, WA',
-            languages: [Language.ENGLISH],
-            photoUrl: 'https://picsum.photos/202/202'
-        },
-        {
-            uid: 'user_5',
-            displayName: 'Kenji Tanaka',
-            major: Major.SCIENCE,
-            commonInterests: [Interest.SKIING, Interest.MUSIC],
-            homeRegion: 'Osaka, Japan',
-            languages: [Language.JAPANESE, Language.ENGLISH],
-            photoUrl: 'https://picsum.photos/204/204'
-        }
-    ];
-
-    // Mock "Pending Requests" for the current user
-    private incomingRequests: MatchProfileModel[] = [
-        {
-            uid: 'cypress_team',
-            displayName: 'Cypress Team',
-            major: Major.COMPUTER_SCIENCE,
-            bio: "We are the development team behind Cypress. We'd love to hear your thoughts!",
-            commonInterests: [Interest.CODING, Interest.STARTUPS],
-            homeRegion: 'UBC Campus',
-            languages: [Language.ENGLISH],
-            photoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=200&h=200'
-        }
-    ];
-
-    private constructor() {
-        this.loadDatabase();
-    }
-
-    private loadDatabase() {
-        try {
-            const data = localStorage.getItem(this.STORAGE_KEY);
-            if (data) {
-                const parsed = JSON.parse(data);
-                if (Array.isArray(parsed)) {
-                    this.registeredUsers = new Map(parsed);
-                }
-            }
-        } catch (e) {
-            console.error("Failed to load user database", e);
-        }
-    }
-
-    private saveDatabase() {
-        try {
-            const data = JSON.stringify(Array.from(this.registeredUsers.entries()));
-            localStorage.setItem(this.STORAGE_KEY, data);
-        } catch (e) {
-            console.error("Failed to save user database", e);
-        }
-    }
-
-    /* Helper to create a consistent new user object */
-    private generateNewUser(email: string): UserModel {
-        // Try to derive a display name from email (e.g. jane.doe@... -> Jane Doe)
-        let displayName = 'New Student';
-        try {
-            const namePart = email.split('@')[0];
-            if (namePart) {
-                displayName = namePart.split('.')
-                    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                    .join(' ');
-            }
-        } catch (e) { /* ignore */ }
-
-        return {
-            uid: `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-            email: email, // Will be stored normalized in logic
-            displayName: displayName,
-            major: null,
-            bio: '',
-            interests: [],
-            homeRegion: '',
-            languages: [Language.ENGLISH], // Default
-            isVerified: false,
-            isSearchable: true, // Default Privacy: Visible
-            settings: {
-                general: true,
-                dailyMatches: true,
-                directMessages: true
-            }
-        };
-    }
+    private constructor() {}
 
     /* Singleton Accessor */
     public static getInstance(): DataRepository {
@@ -156,365 +29,356 @@ export class DataRepository {
      * Session Management: Restore
      */
     public async restoreSession(): Promise<UserModel | null> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const uid = localStorage.getItem(this.SESSION_KEY);
-                if (!uid) {
-                    resolve(null);
-                    return;
-                }
-
-                // Ensure DB is loaded
-                if (this.registeredUsers.size === 0) {
-                    this.loadDatabase();
-                }
-
-                // Find user in registered users
-                for (const user of this.registeredUsers.values()) {
-                    if (user.uid === uid) {
-                        this.mockUser = user;
-                        resolve(user);
-                        return;
-                    }
-                }
-                
-                // If not found (e.g. wiped data), clear session
-                localStorage.removeItem(this.SESSION_KEY);
-                resolve(null);
-            }, 300);
-        });
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+            return await this.fetchUserProfile(session.user.id, session.user.email || '');
+        }
+        return null;
     }
 
     /*
      * Authentication: Logout
      */
     public async logout(): Promise<void> {
-        return new Promise((resolve) => {
-            this.mockUser = null;
-            localStorage.removeItem(this.SESSION_KEY);
-            resolve();
-        });
+        await supabase.auth.signOut();
+        this.currentUserCache = null;
     }
 
-    /* 
-     * Authentication: Login
-     * Specification: Authenticates user against mock DB. Throws error if email doesn't end in ubc.ca
-     */
     public async login(email: string): Promise<UserModel> {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const normalizedEmail = email.toLowerCase().trim();
-
-                if (!normalizedEmail.endsWith('@student.ubc.ca')) {
-                    reject(new Error("Email must be a @student.ubc.ca address"));
-                    return;
-                }
-
-                const user = this.registeredUsers.get(normalizedEmail);
-                
-                if (!user) {
-                    // Fail if account doesn't exist (Strict Login)
-                    reject(new Error("Account not found. Please sign up."));
-                    return;
-                }
-
-                this.mockUser = user;
-                localStorage.setItem(this.SESSION_KEY, user.uid); // Persist Session
-                resolve(this.mockUser);
-            }, 1000); 
+        throw new Error("For Supabase, please use 'Sign Up' to create the account/profile first, or use loginWithPassword.");
+    }
+    
+    public async loginWithPassword(email: string, password: string): Promise<UserModel> {
+         const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
         });
+
+        if (error) throw error;
+        if (!data.user) throw new Error("Login failed");
+
+        return await this.fetchUserProfile(data.user.id, email);
     }
 
     /*
      * Authentication: Signup
-     * Specification: Creates a new user in the mock DB.
      */
     public async signup(email: string, password: string): Promise<UserModel> {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const normalizedEmail = email.toLowerCase().trim();
-
-                if (!normalizedEmail.endsWith('@student.ubc.ca')) {
-                    reject(new Error("Email must be a @student.ubc.ca address"));
-                    return;
-                }
-
-                if (password.length < 6) {
-                    reject(new Error("Password must be at least 6 characters"));
-                    return;
-                }
-
-                if (this.registeredUsers.has(normalizedEmail)) {
-                    reject(new Error("The email is already been used."));
-                    return;
-                }
-
-                // Create new user using shared helper
-                const newUser = this.generateNewUser(normalizedEmail);
-                newUser.isVerified = true;
-
-                // Save to "Database"
-                this.registeredUsers.set(normalizedEmail, newUser);
-                this.mockUser = newUser;
-                this.saveDatabase();
-                
-                localStorage.setItem(this.SESSION_KEY, newUser.uid); // Persist Session
-
-                resolve(newUser);
-            }, 1500); 
+        // 1. Create Auth User
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
         });
+
+        if (error) throw error;
+        if (!data.user) throw new Error("Signup failed");
+
+        // 2. Create Profile Entry
+        const newUser: UserModel = {
+            uid: data.user.id,
+            email: email,
+            displayName: email.split('@')[0], // Default name
+            major: null,
+            bio: '',
+            interests: [],
+            homeRegion: '',
+            languages: [Language.ENGLISH],
+            isVerified: true,
+            isSearchable: true,
+            settings: { general: true, dailyMatches: true, directMessages: true }
+        };
+
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+                id: newUser.uid,
+                email: newUser.email,
+                display_name: newUser.displayName,
+                major: newUser.major,
+                bio: newUser.bio,
+                interests: newUser.interests,
+                languages: newUser.languages,
+                home_region: newUser.homeRegion,
+                is_searchable: newUser.isSearchable
+            });
+
+        if (profileError) {
+            console.error("Profile creation error", profileError);
+        }
+
+        this.currentUserCache = newUser;
+        return newUser;
+    }
+
+    /* Helper: Fetch Profile from DB */
+    private async fetchUserProfile(uid: string, email: string): Promise<UserModel> {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', uid)
+            .single();
+
+        if (error || !data) {
+            // Fallback if auth exists but profile doesn't (rare)
+            return {
+                uid,
+                email,
+                displayName: 'User',
+                major: null,
+                interests: [],
+                languages: [],
+                homeRegion: '',
+                isVerified: true,
+                isSearchable: true,
+                settings: { general: true, dailyMatches: true, directMessages: true }
+            };
+        }
+
+        const user: UserModel = {
+            uid: data.id,
+            email: data.email || email,
+            displayName: data.display_name,
+            major: data.major as Major,
+            bio: data.bio,
+            interests: data.interests || [],
+            languages: data.languages || [],
+            homeRegion: data.home_region,
+            photoUrl: data.photo_url,
+            isVerified: true,
+            isSearchable: data.is_searchable,
+            settings: { general: true, dailyMatches: true, directMessages: true }
+        };
+
+        this.currentUserCache = user;
+        return user;
     }
 
     /* 
      * Profile: Update
-     * Specification: Updates the current user model on the server.
      */
     public async updateProfile(updates: Partial<UserModel>): Promise<UserModel> {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                if (!this.mockUser) {
-                    reject(new Error("No user logged in"));
-                    return;
-                }
-                
-                const updatedUser = { ...this.mockUser, ...updates };
-                
-                this.mockUser = updatedUser;
-                // Update the "Database" too
-                const normalizedEmail = this.mockUser.email.toLowerCase();
-                this.registeredUsers.set(normalizedEmail, updatedUser);
-                this.saveDatabase();
-                
-                resolve(this.mockUser);
-            }, 800);
-        });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user logged in");
+
+        // Map frontend camelCase to DB snake_case
+        const dbUpdates: any = {};
+        if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+        if (updates.major !== undefined) dbUpdates.major = updates.major;
+        if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+        if (updates.interests !== undefined) dbUpdates.interests = updates.interests;
+        if (updates.languages !== undefined) dbUpdates.languages = updates.languages;
+        if (updates.homeRegion !== undefined) dbUpdates.home_region = updates.homeRegion;
+        if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl;
+        if (updates.isSearchable !== undefined) dbUpdates.is_searchable = updates.isSearchable;
+
+        const { error } = await supabase
+            .from('profiles')
+            .update(dbUpdates)
+            .eq('id', user.id);
+
+        if (error) throw new Error(error.message);
+
+        // Update cache
+        if (this.currentUserCache) {
+            this.currentUserCache = { ...this.currentUserCache, ...updates };
+        }
+        
+        return this.currentUserCache!;
     }
 
     /* 
      * Discovery: Fetch Queue
-     * Specification: Retrieves the prioritized match queue for the active user.
-     * Logic: Sorts potential matches to prioritize those with shared languages.
-     * Fix 2: Explicitly ensure registered users are included.
      */
     public async getMatchQueue(): Promise<MatchProfileModel[]> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // 1. Start with mock matches
-                let matches: MatchProfileModel[] = [...this.mockMatches];
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
 
-                // 2. Mix in real registered users (excluding self)
-                if (this.mockUser) {
-                    const myUid = this.mockUser.uid;
-                    
-                    // Force refresh from localStorage in case another tab updated it
-                    this.loadDatabase();
-
-                    this.registeredUsers.forEach(user => {
-                        // Don't show myself
-                        if (user.uid === myUid) return;
-                        
-                        // Check privacy setting (default true if undefined)
-                        const isVisible = user.isSearchable !== false;
-                        
-                        if (isVisible) {
-                            const commonInterests = user.interests.filter(i => 
-                                this.mockUser?.interests.includes(i)
-                            );
-
-                            matches.push({
-                                uid: user.uid,
-                                displayName: user.displayName,
-                                major: user.major || Major.ARTS,
-                                bio: user.bio,
-                                commonInterests: commonInterests,
-                                homeRegion: user.homeRegion,
-                                languages: user.languages,
-                                photoUrl: user.photoUrl
-                            });
-                        }
-                    });
-                }
-                
-                // 3. Prioritize by Language Similarity
-                if (this.mockUser && this.mockUser.languages.length > 0) {
-                    const userLangs = new Set(this.mockUser.languages);
-                    
-                    matches.sort((a, b) => {
-                        const aShared = a.languages.filter(l => userLangs.has(l)).length;
-                        const bShared = b.languages.filter(l => userLangs.has(l)).length;
-                        return bShared - aShared; // Descending order of shared languages
-                    });
-                }
-                
-                // Deduplicate by UID
-                const uniqueMatches = Array.from(new Map(matches.map(m => [m.uid, m])).values());
-                
-                resolve(uniqueMatches);
-            }, 600);
+        // 1. Get list of users I have already swiped on (Connected or Dismissed)
+        const { data: existingConnections } = await supabase
+            .from('connections')
+            .select('user_a, user_b')
+            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+        
+        const excludedIds = new Set<string>();
+        excludedIds.add(user.id); // Exclude self
+        
+        existingConnections?.forEach((row: any) => {
+            if (row.user_a === user.id) excludedIds.add(row.user_b);
+            if (row.user_b === user.id) excludedIds.add(row.user_a);
         });
+
+        // 2. Fetch profiles NOT in that list
+        let query = supabase
+            .from('profiles')
+            .select('*')
+            .eq('is_searchable', true)
+            .limit(20);
+
+        if (excludedIds.size > 0) {
+             // Supabase filter for "NOT IN"
+             query = query.not('id', 'in', `(${Array.from(excludedIds).join(',')})`);
+        }
+
+        const { data, error } = await query;
+
+        if (error || !data) return [];
+
+        return data.map((p: any) => ({
+            uid: p.id,
+            displayName: p.display_name || 'Student',
+            major: p.major || Major.ARTS,
+            bio: p.bio,
+            commonInterests: p.interests || [],
+            homeRegion: p.home_region,
+            languages: p.languages || [],
+            photoUrl: p.photo_url
+        }));
     }
 
     /* 
      * Discovery: Search
      */
     public async searchUsers(query: string): Promise<MatchProfileModel[]> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const lowerQuery = query.toLowerCase().trim();
-                if (!lowerQuery) {
-                    resolve([]);
-                    return;
-                }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
 
-                const results: MatchProfileModel[] = [];
-                const currentUserUid = this.mockUser?.uid;
-                
-                // Refresh data
-                this.loadDatabase();
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .neq('id', user.id)
+            .ilike('display_name', `%${query}%`)
+            .limit(10);
 
-                // Search through registered users
-                this.registeredUsers.forEach((user) => {
-                    if (user.isSearchable === false) return;
-                    if (user.uid === currentUserUid) return;
+        if (error || !data) return [];
 
-                    const nameMatch = user.displayName.toLowerCase().includes(lowerQuery);
-                    const majorMatch = user.major?.toLowerCase().includes(lowerQuery);
-                    const emailMatch = user.email.toLowerCase().includes(lowerQuery);
-
-                    if (nameMatch || majorMatch || emailMatch) {
-                        const commonInterests = user.interests.filter(i => 
-                            this.mockUser?.interests.includes(i)
-                        );
-
-                        results.push({
-                            uid: user.uid,
-                            displayName: user.displayName,
-                            major: user.major || Major.ARTS,
-                            bio: user.bio,
-                            commonInterests: commonInterests,
-                            languages: user.languages,
-                            homeRegion: user.homeRegion,
-                            photoUrl: user.photoUrl
-                        });
-                    }
-                });
-
-                // Also search the mock matches array
-                this.mockMatches.forEach((match) => {
-                    if (match.uid === currentUserUid) return;
-                    const nameMatch = match.displayName.toLowerCase().includes(lowerQuery);
-                    const majorMatch = match.major.toLowerCase().includes(lowerQuery);
-                    
-                    if (nameMatch || majorMatch) {
-                        if (!results.some(r => r.uid === match.uid)) {
-                            results.push(match);
-                        }
-                    }
-                });
-
-                resolve(results);
-            }, 500);
-        });
+        return data.map((p: any) => ({
+            uid: p.id,
+            displayName: p.display_name || 'Student',
+            major: p.major || Major.ARTS,
+            bio: p.bio,
+            commonInterests: p.interests || [],
+            languages: p.languages || [],
+            homeRegion: p.home_region,
+            photoUrl: p.photo_url
+        }));
     }
 
+    /* 
+     * Connections: Swipe Logic
+     */
     public async recordSwipe(targetUid: string, action: 'CONNECT' | 'DISMISS'): Promise<void> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log(`Recorded ${action} on ${targetUid}`);
-                resolve();
-            }, 300);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Insert into connections with appropriate status
+        // If 'CONNECT', status is PENDING
+        // If 'DISMISS', status is DISMISSED (so they don't show up again)
+        await supabase.from('connections').insert({
+            user_a: user.id,
+            user_b: targetUid,
+            status: action === 'CONNECT' ? 'PENDING' : 'DISMISSED'
         });
     }
 
     public async getIncomingRequests(): Promise<MatchProfileModel[]> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([...this.incomingRequests]);
-            }, 400);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        // Find connections where user_b is ME and status is PENDING
+        // We use the explicit Foreign Key name provided in the SQL schema below
+        const { data, error } = await supabase
+            .from('connections')
+            .select(`
+                user_a, 
+                profiles!connections_user_a_fkey(*)
+            `)
+            .eq('user_b', user.id)
+            .eq('status', 'PENDING');
+
+        if (error || !data) return [];
+
+        // Map the joined profile data
+        return data.map((row: any) => {
+            const p = row.profiles;
+            return {
+                uid: p.id,
+                displayName: p.display_name,
+                major: p.major,
+                bio: p.bio,
+                commonInterests: p.interests || [],
+                languages: p.languages || [],
+                photoUrl: p.photo_url
+            };
         });
     }
 
     public async respondToRequest(targetUid: string, action: 'ACCEPT' | 'DECLINE'): Promise<MatchProfileModel | null> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const requestIndex = this.incomingRequests.findIndex(r => r.uid === targetUid);
-                let acceptedUser: MatchProfileModel | null = null;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
 
-                if (requestIndex !== -1) {
-                    if (action === 'ACCEPT') {
-                        acceptedUser = this.incomingRequests[requestIndex];
+        const status = action === 'ACCEPT' ? 'CONNECTED' : 'DISMISSED';
 
-                        // FIX 3: Add to registeredUsers to ensure getUser() finds them later
-                        // Even if they are just a "mock" match, we promote them to the persistent store
-                        // so they don't disappear from the connections list.
-                        const pseudoEmail = `${targetUid}@simulated.com`;
-                        if (!this.registeredUsers.has(pseudoEmail) && acceptedUser) {
-                            const persistedProfile: UserModel = {
-                                uid: acceptedUser.uid,
-                                email: pseudoEmail,
-                                displayName: acceptedUser.displayName,
-                                major: acceptedUser.major,
-                                bio: acceptedUser.bio,
-                                interests: acceptedUser.commonInterests,
-                                languages: acceptedUser.languages || [],
-                                homeRegion: acceptedUser.homeRegion || '',
-                                isVerified: true,
-                                isSearchable: true,
-                                photoUrl: acceptedUser.photoUrl,
-                                settings: { general: true, dailyMatches: true, directMessages: true }
-                            };
-                            this.registeredUsers.set(pseudoEmail, persistedProfile);
-                            // We don't necessarily need to saveDatabase() for this session-only fix, 
-                            // but it helps if we reload.
-                        }
-                    }
-                    this.incomingRequests.splice(requestIndex, 1);
-                }
-                resolve(acceptedUser);
-            }, 300);
-        });
+        await supabase
+            .from('connections')
+            .update({ status })
+            .eq('user_b', user.id)
+            .eq('user_a', targetUid);
+
+        if (action === 'ACCEPT') {
+            const profile = await this.getUser(targetUid);
+            return {
+                uid: profile.uid!,
+                displayName: profile.displayName!,
+                major: profile.major!,
+                photoUrl: profile.photoUrl,
+                commonInterests: [],
+                languages: []
+            };
+        }
+        return null;
     }
 
     public async simulateIncomingRequest(fakeUser: MatchProfileModel): Promise<void> {
-        return new Promise((resolve) => {
-            if (!this.incomingRequests.some(r => r.uid === fakeUser.uid)) {
-                this.incomingRequests.push(fakeUser);
-            }
-            resolve();
-        });
+        // No-op for prod
     }
 
-    // Fix 2: Collect Feedback
     public async saveFeedback(userId: string, text: string): Promise<void> {
-        return new Promise((resolve) => {
-            this.feedbackLog.push({
-                userId,
-                text,
-                timestamp: Date.now()
-            });
-            console.log("Feedback Recorded:", text);
-            resolve();
-        });
+        // No-op for prod
     }
 
     /* 
      * Connections: Get Mutuals
-     * Specification: Returns list of mutual connections.
      */
     public async getConnections(): Promise<ConnectionModel[]> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([
-                    {
-                        uid: 'cypress_bot',
-                        displayName: 'Cypress Bot',
-                        major: Major.COMPUTER_SCIENCE,
-                        // Fix: Updated to Tree Icon SVG
-                        photoUrl: this.TREE_ICON_URL,
-                        timestamp: Date.now()
-                    }
-                ]);
-            }, 400);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        // Fetch connected friends
+        // Uses explicit FK names to avoid ambiguity
+        const { data, error } = await supabase
+            .from('connections')
+            .select(`
+                user_a, 
+                user_b,
+                profile_a:profiles!connections_user_a_fkey(id, display_name, major, photo_url),
+                profile_b:profiles!connections_user_b_fkey(id, display_name, major, photo_url)
+            `)
+            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+            .eq('status', 'CONNECTED');
+
+        if (error || !data) return [];
+
+        return data.map((row: any) => {
+            // Determine which profile is the "other" person
+            const otherProfile = row.user_a === user.id ? row.profile_b : row.profile_a;
+            return {
+                uid: otherProfile.id,
+                displayName: otherProfile.display_name,
+                major: otherProfile.major,
+                photoUrl: otherProfile.photo_url,
+                timestamp: Date.now()
+            };
         });
     }
 
@@ -522,87 +386,37 @@ export class DataRepository {
      * General: Get User by ID
      */
     public async getUser(uid: string): Promise<Partial<UserModel>> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // 0. Check for Bot
-                if (uid === 'cypress_bot') {
-                    resolve({
-                        uid: 'cypress_bot',
-                        displayName: 'Cypress Bot',
-                        major: Major.COMPUTER_SCIENCE,
-                        bio: "I'm here to help you navigate Cypress! Ask me about privacy or how to use the app.",
-                        photoUrl: this.TREE_ICON_URL,
-                        interests: [Interest.CODING, Interest.STARTUPS],
-                        homeRegion: 'Server Room',
-                        languages: [Language.ENGLISH]
-                    });
-                    return;
-                }
+        if (uid === 'cypress_bot' || uid === 'cypress_team') {
+            return {
+                uid,
+                displayName: uid === 'cypress_bot' ? 'Cypress Bot' : 'Cypress Team',
+                major: Major.COMPUTER_SCIENCE,
+                bio: "Official System Account",
+                photoUrl: this.TREE_ICON_URL,
+                interests: [],
+                languages: [Language.ENGLISH]
+            };
+        }
 
-                // Check for Team
-                if (uid === 'cypress_team') {
-                    resolve({
-                        uid: 'cypress_team',
-                        displayName: 'Cypress Team',
-                        major: Major.COMPUTER_SCIENCE,
-                        bio: "We build Cypress for you. Let us know how we can improve!",
-                        photoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=200&h=200',
-                        interests: [Interest.CODING],
-                        homeRegion: 'UBC',
-                        languages: [Language.ENGLISH]
-                    });
-                    return;
-                }
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', uid)
+            .single();
 
-                // 1. Try to find in registered users
-                this.loadDatabase(); // Ensure fresh
-                
-                // Search values because keys are emails
-                for (const user of this.registeredUsers.values()) {
-                    if (user.uid === uid) {
-                        resolve(user);
-                        return;
-                    }
-                }
+        if (error || !data) {
+            return { uid, displayName: 'Unknown User' };
+        }
 
-                // 2. Try mock matches
-                const match = this.mockMatches.find(m => m.uid === uid);
-                if (match) {
-                    resolve({
-                        uid: match.uid,
-                        displayName: match.displayName,
-                        major: match.major,
-                        bio: match.bio,
-                        photoUrl: match.photoUrl,
-                        interests: match.commonInterests, 
-                        homeRegion: match.homeRegion,
-                        languages: match.languages
-                    });
-                    return;
-                }
-
-                // 3. Try incoming requests
-                const request = this.incomingRequests.find(m => m.uid === uid);
-                if (request) {
-                    resolve({
-                        uid: request.uid,
-                        displayName: request.displayName,
-                        major: request.major,
-                        bio: request.bio,
-                        photoUrl: request.photoUrl,
-                        interests: request.commonInterests,
-                        homeRegion: request.homeRegion,
-                        languages: request.languages
-                    });
-                    return;
-                }
-                
-                resolve({
-                    uid: uid,
-                    displayName: 'Unknown User',
-                    major: Major.ARTS
-                });
-            }, 300);
-        });
+        return {
+            uid: data.id,
+            displayName: data.display_name,
+            major: data.major,
+            bio: data.bio,
+            interests: data.interests,
+            languages: data.languages,
+            homeRegion: data.home_region,
+            photoUrl: data.photo_url
+        };
     }
 }

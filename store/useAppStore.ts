@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { UserModel, MatchProfileModel, ConnectionModel, Language, AppNotification, Major } from '../types';
 import { DataRepository } from '../services/dataRepository';
@@ -22,7 +23,7 @@ interface AppState {
 
     // Actions
     checkSession: () => Promise<void>; // Init action
-    login: (email: string) => Promise<void>;
+    login: (email: string, password?: string) => Promise<void>; // Changed signature
     signup: (email: string, password: string) => Promise<void>;
     logout: () => void;
     updateUserProfile: (updates: Partial<UserModel>) => Promise<void>;
@@ -74,11 +75,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
-    login: async (email: string) => {
+    login: async (email: string, password?: string) => {
         set({ isLoading: true, error: null });
         try {
             const repo = DataRepository.getInstance();
-            const user = await repo.login(email);
+            // Assuming AuthView now passes password, or use temporary placeholder logic
+            // In a real app, AuthView needs to call login(email, password)
+            if (!password) {
+                throw new Error("Password required for Supabase login");
+            }
+            const user = await repo.loginWithPassword(email, password);
             set({ currentUser: user, isAuthenticated: true, isLoading: false });
             // Fetch initial data
             get().fetchIncomingRequests(); 

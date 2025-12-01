@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useNavigate } from 'react-router-dom';
@@ -74,7 +73,7 @@ export const AuthView: React.FC = () => {
         if (isSignup) {
             await signup(email, password);
         } else {
-            await login(email); 
+            await login(email, password); 
         }
 
         // Navigation handled after state update check
