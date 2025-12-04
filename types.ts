@@ -124,3 +124,15 @@ export interface Message {
     timestamp: number;
     status: MessageStatus;
 }
+
+/*
+ * Database Message Model
+ */
+export interface DbMessage {
+    id: string;
+    sender_id: string;
+    receiver_id: string;
+    content: string;
+    is_read: boolean;
+    created_at: string;
+}
