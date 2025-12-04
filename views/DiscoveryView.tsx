@@ -101,7 +101,7 @@ export const DiscoveryView: React.FC = () => {
                                 {searchResults.map(profile => (
                                     <div key={profile.uid} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-[1.01]">
                                         <img 
-                                            src={profile.photoUrl} 
+                                            src={profile.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=0032A0&color=fff&size=128`} 
                                             alt={profile.displayName} 
                                             className="w-16 h-16 rounded-full object-cover bg-gray-100"
                                         />
@@ -147,7 +147,7 @@ export const DiscoveryView: React.FC = () => {
                                 {/* Photo Section */}
                                 <div className="h-3/5 md:h-full md:w-1/2 bg-gray-200 relative">
                                     <img 
-                                        src={activeCard.photoUrl} 
+                                        src={activeCard.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeCard.displayName)}&background=0032A0&color=fff&size=512`} 
                                         alt={activeCard.displayName}
                                         className="w-full h-full object-cover"
                                     />

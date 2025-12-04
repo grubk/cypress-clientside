@@ -234,23 +234,38 @@ export class DataRepository {
             return [];
         }
 
-        // 1. Get list of users I have already swiped on (Connected or Dismissed)
+        // 1. Get list of users I have already swiped on (from connections table)
         const { data: existingConnections } = await supabase
             .from('connections')
-            .select('user_a, user_b')
-            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+            .select('user_id, target_user_id')
+            .eq('user_id', user.id);
         
         const excludedIds = new Set<string>();
         excludedIds.add(user.id); // Exclude self
         
+        // Add users I've already swiped on (liked or passed)
         existingConnections?.forEach((row: any) => {
-            if (row.user_a === user.id) excludedIds.add(row.user_b);
-            if (row.user_b === user.id) excludedIds.add(row.user_a);
+            excludedIds.add(row.target_user_id);
         });
 
-        console.log('Excluded user IDs:', Array.from(excludedIds));
+        // 2. Also exclude users I'm already mutually connected with
+        const { data: mutualConnections } = await supabase
+            .from('mutual_connections')
+            .select('user_id_1, user_id_2')
+            .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
+        
+        mutualConnections?.forEach((row: any) => {
+            // Add the other user in the connection
+            if (row.user_id_1 === user.id) {
+                excludedIds.add(row.user_id_2);
+            } else {
+                excludedIds.add(row.user_id_1);
+            }
+        });
 
-        // 2. Fetch profiles NOT in that list and NOT with the same major
+        console.log('Excluded user IDs (swiped + connected):', Array.from(excludedIds));
+
+        // 3. Fetch profiles NOT in that list and NOT with the same major
         let query = supabase
             .from('profiles')
             .select('*')
