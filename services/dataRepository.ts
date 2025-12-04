@@ -172,19 +172,27 @@ export class DataRepository {
         if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl;
         if (updates.isSearchable !== undefined) dbUpdates.is_searchable = updates.isSearchable;
 
-        const { error } = await supabase
+        console.log('Updating profile with:', dbUpdates);
+
+        const { data, error } = await supabase
             .from('profiles')
             .update(dbUpdates)
-            .eq('id', user.id);
+            .eq('id', user.id)
+            .select()
+            .single();
 
-        if (error) throw new Error(error.message);
-
-        // Update cache
-        if (this.currentUserCache) {
-            this.currentUserCache = { ...this.currentUserCache, ...updates };
+        if (error) {
+            console.error('Profile update error:', error);
+            throw new Error(error.message);
         }
+
+        console.log('Profile updated successfully:', data);
+
+        // Fetch fresh data from DB to ensure consistency
+        const updatedUser = await this.fetchUserProfile(user.id, user.email || '');
+        this.currentUserCache = updatedUser;
         
-        return this.currentUserCache!;
+        return updatedUser;
     }
 
     /* 
@@ -192,7 +200,39 @@ export class DataRepository {
      */
     public async getMatchQueue(): Promise<MatchProfileModel[]> {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return [];
+        if (!user) {
+            console.log('No authenticated user');
+            return [];
+        }
+
+        // Get current user's profile to access their major and interests
+        const { data: currentUserProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('major, interests')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError) {
+            console.error('Error fetching current user profile:', profileError);
+            return [];
+        }
+
+        if (!currentUserProfile) {
+            console.log('No profile found for current user');
+            return [];
+        }
+
+        const currentUserMajor = currentUserProfile.major;
+        const currentUserInterests: Interest[] = currentUserProfile.interests || [];
+
+        console.log('Current user major:', currentUserMajor);
+        console.log('Current user interests:', currentUserInterests);
+
+        // If user hasn't set their major yet, don't show matches
+        if (!currentUserMajor) {
+            console.log('User has not set their major - cannot fetch matches');
+            return [];
+        }
 
         // 1. Get list of users I have already swiped on (Connected or Dismissed)
         const { data: existingConnections } = await supabase
@@ -208,12 +248,16 @@ export class DataRepository {
             if (row.user_b === user.id) excludedIds.add(row.user_a);
         });
 
-        // 2. Fetch profiles NOT in that list
+        console.log('Excluded user IDs:', Array.from(excludedIds));
+
+        // 2. Fetch profiles NOT in that list and NOT with the same major
         let query = supabase
             .from('profiles')
             .select('*')
             .eq('is_searchable', true)
-            .limit(20);
+            .neq('major', currentUserMajor) // MUST NOT have the same major
+            .not('major', 'is', null) // Exclude users without a major set
+            .limit(50); // Fetch more initially to have better sorting pool
 
         if (excludedIds.size > 0) {
              // Supabase filter for "NOT IN"
@@ -222,18 +266,49 @@ export class DataRepository {
 
         const { data, error } = await query;
 
-        if (error || !data) return [];
+        if (error) {
+            console.error('Error fetching match queue:', error);
+            return [];
+        }
 
-        return data.map((p: any) => ({
-            uid: p.id,
-            displayName: p.display_name || 'Student',
-            major: p.major || Major.ARTS,
-            bio: p.bio,
-            commonInterests: p.interests || [],
-            homeRegion: p.home_region,
-            languages: p.languages || [],
-            photoUrl: p.photo_url
-        }));
+        if (!data || data.length === 0) {
+            console.log('No matching profiles found in database');
+            return [];
+        }
+
+        console.log(`Found ${data.length} potential matches`);
+
+        // 3. Map to MatchProfileModel and calculate common interests
+        const profiles = data.map((p: any) => {
+            const profileInterests: Interest[] = p.interests || [];
+            const commonInterests = profileInterests.filter(interest => 
+                currentUserInterests.includes(interest)
+            );
+
+            return {
+                uid: p.id,
+                displayName: p.display_name || 'Student',
+                major: p.major || Major.ARTS,
+                bio: p.bio,
+                commonInterests: commonInterests,
+                homeRegion: p.home_region,
+                languages: p.languages || [],
+                photoUrl: p.photo_url,
+                _commonInterestCount: commonInterests.length // Temporary field for sorting
+            };
+        });
+
+        // 4. Sort by number of common interests (descending)
+        profiles.sort((a, b) => b._commonInterestCount - a._commonInterestCount);
+
+        console.log('Match queue sorted by common interests:', profiles.map(p => ({
+            name: p.displayName,
+            major: p.major,
+            commonInterests: p._commonInterestCount
+        })));
+
+        // 5. Remove the temporary sorting field and return top 20
+        return profiles.slice(0, 20).map(({ _commonInterestCount, ...profile }) => profile);
     }
 
     /* 
@@ -271,60 +346,109 @@ export class DataRepository {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Insert into connections with appropriate status
-        // If 'CONNECT', status is PENDING
-        // If 'DISMISS', status is DISMISSED (so they don't show up again)
-        await supabase.from('connections').insert({
-            user_a: user.id,
-            user_b: targetUid,
-            status: action === 'CONNECT' ? 'PENDING' : 'DISMISSED'
-        });
+        console.log('[RecordSwipe] Recording swipe:', { userId: user.id, targetUid, action });
+
+        // Insert into connections table
+        // The database trigger will automatically create mutual_connections if both users liked each other
+        const { data, error } = await supabase.from('connections').insert({
+            user_id: user.id,
+            target_user_id: targetUid,
+            action: action === 'CONNECT' ? 'like' : 'pass'
+        }).select();
+
+        if (error) {
+            console.error('[RecordSwipe] Error recording swipe:', error);
+            throw error;
+        }
+
+        console.log('[RecordSwipe] Swipe recorded successfully:', data);
     }
 
     public async getIncomingRequests(): Promise<MatchProfileModel[]> {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return [];
+        if (!user) {
+            console.log('[IncomingRequests] No authenticated user');
+            return [];
+        }
 
-        // Find connections where user_b is ME and status is PENDING
-        // We use the explicit Foreign Key name provided in the SQL schema below
-        const { data, error } = await supabase
+        console.log('[IncomingRequests] Fetching incoming requests for:', user.id);
+
+        // Find users who liked me, but I haven't responded to yet
+        // Get all users who liked me
+        const { data: incomingLikes, error } = await supabase
             .from('connections')
-            .select(`
-                user_a, 
-                profiles!connections_user_a_fkey(*)
-            `)
-            .eq('user_b', user.id)
-            .eq('status', 'PENDING');
+            .select('user_id')
+            .eq('target_user_id', user.id)
+            .eq('action', 'like');
 
-        if (error || !data) return [];
+        if (error || !incomingLikes || incomingLikes.length === 0) {
+            console.log('[IncomingRequests] No incoming likes found');
+            return [];
+        }
 
-        // Map the joined profile data
-        return data.map((row: any) => {
-            const p = row.profiles;
-            return {
-                uid: p.id,
-                displayName: p.display_name,
-                major: p.major,
-                bio: p.bio,
-                commonInterests: p.interests || [],
-                languages: p.languages || [],
-                photoUrl: p.photo_url
-            };
-        });
+        const likerIds = incomingLikes.map(like => like.user_id);
+
+        // Check which ones I haven't responded to yet
+        const { data: myResponses } = await supabase
+            .from('connections')
+            .select('target_user_id')
+            .eq('user_id', user.id)
+            .in('target_user_id', likerIds);
+
+        const respondedIds = new Set((myResponses || []).map(r => r.target_user_id));
+        const pendingIds = likerIds.filter(id => !respondedIds.has(id));
+
+        if (pendingIds.length === 0) {
+            console.log('[IncomingRequests] All incoming requests already responded to');
+            return [];
+        }
+
+        console.log('[IncomingRequests] Found pending requests from:', pendingIds);
+
+        // Fetch profiles of users with pending requests
+        const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', pendingIds);
+
+        if (profileError || !profiles) {
+            console.error('[IncomingRequests] Error fetching profiles:', profileError);
+            return [];
+        }
+
+        return profiles.map((p: any) => ({
+            uid: p.id,
+            displayName: p.display_name,
+            major: p.major,
+            bio: p.bio,
+            commonInterests: p.interests || [],
+            languages: p.languages || [],
+            photoUrl: p.photo_url,
+            homeRegion: p.home_region
+        }));
     }
 
     public async respondToRequest(targetUid: string, action: 'ACCEPT' | 'DECLINE'): Promise<MatchProfileModel | null> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return null;
 
-        const status = action === 'ACCEPT' ? 'CONNECTED' : 'DISMISSED';
+        console.log('[RespondToRequest] Responding to request:', { userId: user.id, targetUid, action });
 
-        await supabase
-            .from('connections')
-            .update({ status })
-            .eq('user_b', user.id)
-            .eq('user_a', targetUid);
+        // Record my response (like or pass)
+        const { data, error } = await supabase.from('connections').insert({
+            user_id: user.id,
+            target_user_id: targetUid,
+            action: action === 'ACCEPT' ? 'like' : 'pass'
+        }).select();
 
+        if (error) {
+            console.error('[RespondToRequest] Error recording response:', error);
+            throw error;
+        }
+
+        console.log('[RespondToRequest] Response recorded:', data);
+
+        // If accepted, the trigger will automatically create mutual_connection
         if (action === 'ACCEPT') {
             const profile = await this.getUser(targetUid);
             return {
@@ -332,8 +456,10 @@ export class DataRepository {
                 displayName: profile.displayName!,
                 major: profile.major!,
                 photoUrl: profile.photoUrl,
-                commonInterests: [],
-                languages: []
+                commonInterests: profile.interests || [],
+                languages: profile.languages || [],
+                homeRegion: profile.homeRegion,
+                bio: profile.bio
             };
         }
         return null;
@@ -352,34 +478,60 @@ export class DataRepository {
      */
     public async getConnections(): Promise<ConnectionModel[]> {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return [];
+        if (!user) {
+            console.log('[GetConnections] No authenticated user');
+            return [];
+        }
 
-        // Fetch connected friends
-        // Uses explicit FK names to avoid ambiguity
+        console.log('[GetConnections] Fetching mutual connections for:', user.id);
+
+        // Fetch mutual connections from the mutual_connections table
         const { data, error } = await supabase
-            .from('connections')
+            .from('mutual_connections')
             .select(`
-                user_a, 
-                user_b,
-                profile_a:profiles!connections_user_a_fkey(id, display_name, major, photo_url),
-                profile_b:profiles!connections_user_b_fkey(id, display_name, major, photo_url)
+                user_id_1,
+                user_id_2,
+                created_at
             `)
-            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-            .eq('status', 'CONNECTED');
+            .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
 
-        if (error || !data) return [];
+        if (error) {
+            console.error('[GetConnections] Error fetching mutual connections:', error);
+            return [];
+        }
 
-        return data.map((row: any) => {
-            // Determine which profile is the "other" person
-            const otherProfile = row.user_a === user.id ? row.profile_b : row.profile_a;
-            return {
-                uid: otherProfile.id,
-                displayName: otherProfile.display_name,
-                major: otherProfile.major,
-                photoUrl: otherProfile.photo_url,
-                timestamp: Date.now()
-            };
-        });
+        if (!data || data.length === 0) {
+            console.log('[GetConnections] No mutual connections found');
+            return [];
+        }
+
+        console.log('[GetConnections] Found connections:', data);
+
+        // Get the other user's IDs
+        const otherUserIds = data.map(conn => 
+            conn.user_id_1 === user.id ? conn.user_id_2 : conn.user_id_1
+        );
+
+        // Fetch profiles of connected users
+        const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, display_name, major, photo_url')
+            .in('id', otherUserIds);
+
+        if (profileError) {
+            console.error('[GetConnections] Error fetching profiles:', profileError);
+            return [];
+        }
+
+        console.log('[GetConnections] Fetched profiles:', profiles);
+
+        return (profiles || []).map((profile: any) => ({
+            uid: profile.id,
+            displayName: profile.display_name,
+            major: profile.major,
+            photoUrl: profile.photo_url,
+            timestamp: Date.now()
+        }));
     }
 
     /*
@@ -419,4 +571,132 @@ export class DataRepository {
             photoUrl: data.photo_url
         };
     }
+
+    /*
+     * Messaging: Send Message
+     */
+    public async sendMessage(receiverId: string, content: string): Promise<void> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        console.log('[SendMessage] Sending message:', { from: user.id, to: receiverId, content });
+        
+        const { data, error } = await supabase
+            .from('messages')
+            .insert({
+                sender_id: user.id,
+                receiver_id: receiverId,
+                content: content,
+                is_read: false
+            })
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('[SendMessage] Error sending message:', error);
+            throw error;
+        }
+        
+        console.log('[SendMessage] Message sent successfully:', data);
+    }
+
+    /*
+     * Messaging: Get Messages with User
+     */
+    public async getMessagesWithUser(otherUserId: string): Promise<any[]> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        console.log('[GetMessages] Fetching messages between:', user.id, 'and', otherUserId);
+        
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+            .order('created_at', { ascending: true });
+        
+        if (error) {
+            console.error('[GetMessages] Error fetching messages:', error);
+            throw error;
+        }
+        
+        console.log('[GetMessages] Found messages:', data?.length || 0);
+        return data || [];
+    }
+
+    /*
+     * Messaging: Mark Messages as Read
+     */
+    public async markMessagesAsRead(otherUserId: string): Promise<void> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        console.log('[MarkAsRead] Marking messages as read from:', otherUserId);
+        
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('sender_id', otherUserId)
+            .eq('receiver_id', user.id)
+            .eq('is_read', false);
+        
+        if (error) {
+            console.error('[MarkAsRead] Error marking messages as read:', error);
+            throw error;
+        }
+        
+        console.log('[MarkAsRead] Messages marked as read');
+    }
+
+    /*
+     * Messaging: Get Unread Message Count
+     */
+    public async getUnreadMessageCount(): Promise<number> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return 0;
+        
+        const { count, error } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('receiver_id', user.id)
+            .eq('is_read', false);
+        
+        if (error) {
+            console.error('[UnreadCount] Error fetching unread count:', error);
+            return 0;
+        }
+        
+        return count || 0;
+    }
+
+    /*
+     * Messaging: Subscribe to Real-time Messages
+     */
+    public subscribeToMessages(otherUserId: string, callback: (message: any) => void): () => void {
+        console.log('[Subscribe] Setting up real-time subscription for messages with:', otherUserId);
+        
+        const channel = supabase
+            .channel(`messages-${otherUserId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `sender_id=eq.${otherUserId}`
+                },
+                (payload) => {
+                    console.log('[Subscribe] New message received:', payload.new);
+                    callback(payload.new);
+                }
+            )
+            .subscribe();
+        
+        // Return unsubscribe function
+        return () => {
+            console.log('[Subscribe] Unsubscribing from messages');
+            supabase.removeChannel(channel);
+        };
+    }
 }
+

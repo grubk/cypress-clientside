@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { UserModel, MatchProfileModel, ConnectionModel, Language, AppNotification, Major } from '../types';
+import { UserModel, MatchProfileModel, ConnectionModel, Language, AppNotification, Major, DbMessage } from '../types';
 import { DataRepository } from '../services/dataRepository';
 
 /*
@@ -17,6 +17,8 @@ interface AppState {
     searchResults: MatchProfileModel[]; // For Search feature
     connections: ConnectionModel[];
     notifications: AppNotification[];
+    messages: Record<string, DbMessage[]>; // userId -> messages array
+    unreadCount: number;
     isLoading: boolean;
     error: string | null;
     uiLanguage: Language;
@@ -34,6 +36,11 @@ interface AppState {
     searchUsers: (query: string) => Promise<void>;
     handleSwipe: (targetUid: string, action: 'CONNECT' | 'DISMISS') => Promise<void>;
     fetchConnections: () => Promise<void>;
+    sendMessage: (receiverId: string, content: string) => Promise<void>;
+    loadMessages: (otherUserId: string) => Promise<void>;
+    markAsRead: (otherUserId: string) => Promise<void>;
+    subscribeToUserMessages: (otherUserId: string) => () => void;
+    fetchUnreadCount: () => Promise<void>;
     setUiLanguage: (lang: Language) => void;
     addNotification: (message: string, type: 'success' | 'info' | 'error') => void;
     removeNotification: (id: string) => void;
@@ -55,6 +62,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     searchResults: [],
     connections: [],
     notifications: [],
+    messages: {},
+    unreadCount: 0,
     isLoading: false,
     error: null,
     uiLanguage: Language.ENGLISH,
@@ -79,8 +88,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const repo = DataRepository.getInstance();
-            // Assuming AuthView now passes password, or use temporary placeholder logic
-            // In a real app, AuthView needs to call login(email, password)
             if (!password) {
                 throw new Error("Password required for Supabase login");
             }
@@ -89,7 +96,20 @@ export const useAppStore = create<AppState>((set, get) => ({
             // Fetch initial data
             get().fetchIncomingRequests(); 
         } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+            let errorMessage = err.message;
+            
+            // Handle common Supabase errors with user-friendly messages
+            if (err.message?.includes('rate limit')) {
+                errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+            } else if (err.message?.includes('Email rate limit exceeded')) {
+                errorMessage = 'Too many login attempts. Please wait 60 seconds and try again.';
+            } else if (err.message?.includes('Invalid login credentials')) {
+                errorMessage = 'Invalid email or password. Please try again.';
+            } else if (err.message?.includes('Email not confirmed')) {
+                errorMessage = 'Please check your email and confirm your account first.';
+            }
+            
+            set({ error: errorMessage, isLoading: false });
         }
     },
 
@@ -100,7 +120,20 @@ export const useAppStore = create<AppState>((set, get) => ({
             const user = await repo.signup(email, password);
             set({ currentUser: user, isAuthenticated: true, isLoading: false });
         } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+            let errorMessage = err.message;
+            
+            // Handle common Supabase errors with user-friendly messages
+            if (err.message?.includes('rate limit')) {
+                errorMessage = 'Too many attempts. Please wait a few minutes and try again.';
+            } else if (err.message?.includes('Email rate limit exceeded')) {
+                errorMessage = 'Too many signup attempts. Please wait 60 seconds and try again.';
+            } else if (err.message?.includes('already registered')) {
+                errorMessage = 'This email is already registered. Try logging in instead.';
+            } else if (err.message?.includes('invalid email')) {
+                errorMessage = 'Please enter a valid email address.';
+            }
+            
+            set({ error: errorMessage, isLoading: false });
         }
     },
 
@@ -239,6 +272,53 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch (err: any) {
             set({ error: err.message, isLoading: false });
         }
+    },
+
+    sendMessage: async (receiverId: string, content: string) => {
+        const repo = DataRepository.getInstance();
+        await repo.sendMessage(receiverId, content);
+        // Reload messages to get the new one
+        await get().loadMessages(receiverId);
+    },
+
+    loadMessages: async (otherUserId: string) => {
+        const repo = DataRepository.getInstance();
+        const messages = await repo.getMessagesWithUser(otherUserId);
+        set((state) => ({
+            messages: {
+                ...state.messages,
+                [otherUserId]: messages
+            }
+        }));
+    },
+
+    markAsRead: async (otherUserId: string) => {
+        const repo = DataRepository.getInstance();
+        await repo.markMessagesAsRead(otherUserId);
+        await get().fetchUnreadCount();
+    },
+
+    subscribeToUserMessages: (otherUserId: string) => {
+        const repo = DataRepository.getInstance();
+        return repo.subscribeToMessages(otherUserId, (newMessage) => {
+            set((state) => {
+                const existingMessages = state.messages[otherUserId] || [];
+                return {
+                    messages: {
+                        ...state.messages,
+                        [otherUserId]: [...existingMessages, newMessage]
+                    }
+                };
+            });
+            // Update unread count
+            get().fetchUnreadCount();
+        });
+    },
+
+    fetchUnreadCount: async () => {
+        const repo = DataRepository.getInstance();
+        const count = await repo.getUnreadMessageCount();
+        set({ unreadCount: count });
     },
 
     setUiLanguage: (lang: Language) => {
