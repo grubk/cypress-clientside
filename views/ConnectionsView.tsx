@@ -37,7 +37,7 @@ export const ConnectionsView: React.FC = () => {
                             {incomingRequests.map(req => (
                                 <div key={req.uid} className="bg-white p-4 rounded-xl shadow-md border border-gray-200 border-l-4 border-l-ubc-gold flex flex-col sm:flex-row items-center gap-4 animate-fade-in-up">
                                     <img 
-                                        src={req.photoUrl} 
+                                        src={req.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.displayName)}&background=0032A0&color=fff&size=128`} 
                                         alt={req.displayName} 
                                         className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
                                     />
@@ -92,7 +92,7 @@ export const ConnectionsView: React.FC = () => {
                                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 hover:shadow-md hover:border-ubc-blue/30 transition cursor-pointer active:scale-[0.99] group"
                             >
                                 <img 
-                                    src={conn.photoUrl} 
+                                    src={conn.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(conn.displayName)}&background=0032A0&color=fff&size=128`} 
                                     alt={conn.displayName} 
                                     className="w-14 h-14 rounded-full object-cover bg-gray-200 border border-gray-100"
                                 />
