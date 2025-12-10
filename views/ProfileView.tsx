@@ -5,6 +5,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Major, Interest, Language } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { TRANSLATIONS } from '../utils/translations';
+import { searchLocations, debounce } from '../utils/locationValidator';
 
 export const ProfileView: React.FC = () => {
     const { currentUser, updateUserProfile, logout, uiLanguage } = useAppStore();
@@ -20,6 +21,12 @@ export const ProfileView: React.FC = () => {
     const [homeRegion, setHomeRegion] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+
+    // Location validation state
+    const [locationSuggestions, setLocationSuggestions] = useState<Array<{displayName: string; country: string; state?: string}>>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const locationInputRef = useRef<HTMLDivElement>(null);
 
     // Camera & Upload Refs/State
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +49,56 @@ export const ProfileView: React.FC = () => {
             setHomeRegion(currentUser.homeRegion);
         }
     }, [currentUser]);
+
+    // Location autocomplete handler
+    const handleLocationSearch = async (query: string) => {
+        if (query.length < 2) {
+            setLocationSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        setIsLoadingSuggestions(true);
+        try {
+            const suggestions = await searchLocations(query);
+            setLocationSuggestions(suggestions);
+            setShowSuggestions(suggestions.length > 0);
+        } catch (error) {
+            console.error('Error searching locations:', error);
+        } finally {
+            setIsLoadingSuggestions(false);
+        }
+    };
+
+    // Debounced search to avoid excessive API calls
+    const debouncedLocationSearch = useRef(
+        debounce(handleLocationSearch, 500)
+    ).current;
+
+    // Handle location input change
+    const handleLocationChange = (value: string) => {
+        setHomeRegion(value);
+        debouncedLocationSearch(value);
+    };
+
+    // Handle suggestion selection
+    const handleSuggestionSelect = (suggestion: string) => {
+        setHomeRegion(suggestion);
+        setShowSuggestions(false);
+        setLocationSuggestions([]);
+    };
+
+    // Close suggestions when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (locationInputRef.current && !locationInputRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleInterestToggle = (interest: Interest) => {
         if (selectedInterests.includes(interest)) {
@@ -384,16 +441,46 @@ export const ProfileView: React.FC = () => {
                             </div>
                         </div>
 
-                        <div>
+                        <div ref={locationInputRef}>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{t.profile_region}</label>
                             {isEditing ? (
-                                <input
-                                    type="text"
-                                    value={homeRegion}
-                                    onChange={(e) => setHomeRegion(e.target.value)}
-                                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ubc-blue outline-none"
-                                    placeholder={t.profile_region_hint}
-                                />
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={homeRegion}
+                                        onChange={(e) => handleLocationChange(e.target.value)}
+                                        onFocus={() => homeRegion.length >= 2 && setShowSuggestions(locationSuggestions.length > 0)}
+                                        className="w-full p-3 pr-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ubc-blue outline-none"
+                                        placeholder={t.profile_region_hint}
+                                    />
+                                    {isLoadingSuggestions && (
+                                        <div className="absolute right-3 top-3.5">
+                                            <i className="fas fa-spinner fa-spin text-gray-400"></i>
+                                        </div>
+                                    )}
+                                    {showSuggestions && locationSuggestions.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30 max-h-60 overflow-y-auto animate-fade-in-up">
+                                            {locationSuggestions.map((suggestion, index) => (
+                                                <button
+                                                    key={index}
+                                                    type="button"
+                                                    onClick={() => handleSuggestionSelect(suggestion.displayName)}
+                                                    className="w-full px-4 py-2.5 text-left hover:bg-blue-50 transition-colors flex items-start gap-3"
+                                                >
+                                                    <i className="fas fa-map-marker-alt text-ubc-blue mt-1 text-sm"></i>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-gray-800 font-medium truncate">
+                                                            {suggestion.state || suggestion.country}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 truncate">
+                                                            {suggestion.displayName}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <p className="text-lg border-b border-gray-100 pb-2">{homeRegion || t.profile_region_none}</p>
                             )}
