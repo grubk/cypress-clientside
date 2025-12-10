@@ -64,7 +64,7 @@ export const TRANSLATIONS = {
         profile_region: "Home Region",
         profile_region_hint: "e.g. Vancouver, BC",
         profile_region_none: "Not specified",
-        profile_fill_error: "Please fill in all mandatory fields (Name, Major, Interests, Languages)",
+        profile_fill_error: "Please fill in all mandatory fields (Name, Major, Interests)",
         profile_photo_title: "Choose Profile Photo",
         profile_photo_initials: "Initials",
         profile_photo_abstract: "Abstract",

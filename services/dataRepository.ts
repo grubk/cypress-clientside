@@ -205,10 +205,10 @@ export class DataRepository {
             return [];
         }
 
-        // Get current user's profile to access their major and interests
+        // Get current user's profile to access their major, interests, home region, and languages
         const { data: currentUserProfile, error: profileError } = await supabase
             .from('profiles')
-            .select('major, interests')
+            .select('major, interests, home_region, languages')
             .eq('id', user.id)
             .single();
 
@@ -224,9 +224,13 @@ export class DataRepository {
 
         const currentUserMajor = currentUserProfile.major;
         const currentUserInterests: Interest[] = currentUserProfile.interests || [];
+        const currentUserHomeRegion: string = currentUserProfile.home_region || '';
+        const currentUserLanguages: Language[] = currentUserProfile.languages || [];
 
         console.log('Current user major:', currentUserMajor);
         console.log('Current user interests:', currentUserInterests);
+        console.log('Current user home region:', currentUserHomeRegion);
+        console.log('Current user languages:', currentUserLanguages);
 
         // If user hasn't set their major yet, don't show matches
         if (!currentUserMajor) {
@@ -293,12 +297,25 @@ export class DataRepository {
 
         console.log(`Found ${data.length} potential matches`);
 
-        // 3. Map to MatchProfileModel and calculate common interests
+        // 3. Map to MatchProfileModel and calculate compatibility scores
         const profiles = data.map((p: any) => {
             const profileInterests: Interest[] = p.interests || [];
+            const profileLanguages: Language[] = p.languages || [];
+            const profileHomeRegion: string = p.home_region || '';
+            
+            // Calculate common interests
             const commonInterests = profileInterests.filter(interest => 
                 currentUserInterests.includes(interest)
             );
+            
+            // Calculate common languages
+            const commonLanguages = profileLanguages.filter(lang =>
+                currentUserLanguages.includes(lang)
+            );
+            
+            // Check if home regions match
+            const sameHomeRegion = currentUserHomeRegion && profileHomeRegion && 
+                                   currentUserHomeRegion.toLowerCase() === profileHomeRegion.toLowerCase();
 
             return {
                 uid: p.id,
@@ -309,21 +326,41 @@ export class DataRepository {
                 homeRegion: p.home_region,
                 languages: p.languages || [],
                 photoUrl: p.photo_url,
-                _commonInterestCount: commonInterests.length // Temporary field for sorting
+                _sameHomeRegion: sameHomeRegion,
+                _commonLanguageCount: commonLanguages.length,
+                _commonInterestCount: commonInterests.length
             };
         });
 
-        // 4. Sort by number of common interests (descending)
-        profiles.sort((a, b) => b._commonInterestCount - a._commonInterestCount);
+        // 4. Sort by compatibility: 
+        // High Priority: Same home region
+        // Medium Priority: Common languages
+        // Lower Priority: Common interests
+        profiles.sort((a, b) => {
+            // First, prioritize same home region
+            if (a._sameHomeRegion !== b._sameHomeRegion) {
+                return a._sameHomeRegion ? -1 : 1;
+            }
+            
+            // Second, prioritize common languages
+            if (a._commonLanguageCount !== b._commonLanguageCount) {
+                return b._commonLanguageCount - a._commonLanguageCount;
+            }
+            
+            // Third, sort by common interests
+            return b._commonInterestCount - a._commonInterestCount;
+        });
 
-        console.log('Match queue sorted by common interests:', profiles.map(p => ({
+        console.log('Match queue sorted by compatibility:', profiles.map(p => ({
             name: p.displayName,
             major: p.major,
+            sameRegion: p._sameHomeRegion,
+            commonLanguages: p._commonLanguageCount,
             commonInterests: p._commonInterestCount
         })));
 
-        // 5. Remove the temporary sorting field and return top 20
-        return profiles.slice(0, 20).map(({ _commonInterestCount, ...profile }) => profile);
+        // 5. Remove the temporary sorting fields and return top 20
+        return profiles.slice(0, 20).map(({ _sameHomeRegion, _commonLanguageCount, _commonInterestCount, ...profile }) => profile);
     }
 
     /*
