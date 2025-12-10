@@ -59,6 +59,19 @@ export const ProfileView: React.FC = () => {
         }
     };
 
+    const handleCancel = () => {
+        // Reset all form fields to original values from currentUser
+        if (currentUser) {
+            setDisplayName(currentUser.displayName);
+            setMajor(currentUser.major || '');
+            setBio(currentUser.bio || '');
+            setSelectedInterests(currentUser.interests);
+            setSelectedLanguages(currentUser.languages || []);
+            setHomeRegion(currentUser.homeRegion);
+        }
+        setIsEditing(false);
+    };
+
     const handleSave = async () => {
         if (!displayName || !major || selectedInterests.length === 0 || selectedLanguages.length === 0) {
             alert(t.profile_fill_error);
@@ -390,7 +403,7 @@ export const ProfileView: React.FC = () => {
                     {isEditing && (
                         <div className="flex gap-4 pt-8">
                             <button 
-                                onClick={() => setIsEditing(false)}
+                                onClick={handleCancel}
                                 className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition"
                             >
                                 {t.profile_cancel}
