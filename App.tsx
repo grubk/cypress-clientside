@@ -24,7 +24,7 @@ const App: React.FC = () => {
 
     useEffect(() => {
         checkSession();
-    }, []);
+    }, [checkSession]);
 
     // Show simple loading while session is restored
     if (!isSessionChecked) {

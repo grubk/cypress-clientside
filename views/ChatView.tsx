@@ -196,22 +196,6 @@ export const ChatView: React.FC = () => {
 
                 {/* Input Area */}
                 <div className="bg-white p-3 border-t border-gray-200 flex items-end gap-2">
-                    {/* Photo Button */}
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleFileChange}
-                    />
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-10 h-10 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition shrink-0"
-                        title={t.chat_photo}
-                    >
-                        <i className="fas fa-image"></i>
-                    </button>
-
                     <textarea
                         className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ubc-blue/50 resize-none max-h-32"
                         rows={1}

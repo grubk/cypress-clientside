@@ -43,9 +43,7 @@ export const AuthView: React.FC = () => {
     }, []);
 
     const handleEmailBlur = () => {
-        if (email.length > 0 && !email.endsWith('@student.ubc.ca')) {
-            setShowEmailWarning(true);
-        }
+        // Email validation removed - accept any email
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -53,9 +51,8 @@ export const AuthView: React.FC = () => {
         setFormError(null);
 
         // Client-side Validation
-        if (!email.endsWith('@student.ubc.ca')) {
-            setFormError(t.emailError);
-            setShowEmailWarning(true);
+        if (!email || !email.includes('@')) {
+            setFormError('Please enter a valid email address.');
             return;
         }
 
@@ -114,27 +111,6 @@ export const AuthView: React.FC = () => {
     return (
         <div className="h-full w-full flex bg-white overflow-hidden">
             
-            {/* Warning Popup for Invalid Email */}
-            {showEmailWarning && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in px-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl animate-scale-in border border-gray-100">
-                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto animate-bounce-slight">
-                            <i className="fas fa-university text-red-500 text-2xl"></i>
-                        </div>
-                        <h3 className="text-xl font-bold text-center text-gray-800 mb-2">Student Verification</h3>
-                        <p className="text-gray-500 text-center text-sm mb-6 leading-relaxed">
-                            Cypress is exclusive to UBC students. Please use your <strong>@student.ubc.ca</strong> email address to access the platform.
-                        </p>
-                        <button 
-                            onClick={() => setShowEmailWarning(false)}
-                            className="w-full py-3.5 bg-ubc-blue text-white rounded-xl font-bold hover:bg-ubc-blue/90 transition shadow-lg shadow-ubc-blue/20"
-                        >
-                            I Understand
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Left Side - Desktop Only - Branding */}
             <div className="hidden lg:flex lg:w-1/2 bg-ubc-blue relative items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-ubc-blue to-[#001529] z-0"></div>
