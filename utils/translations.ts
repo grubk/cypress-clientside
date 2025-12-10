@@ -21,6 +21,9 @@ export const TRANSLATIONS = {
         passError: "Password must be at least 6 characters.",
         matchError: "Passwords do not match.",
         emailInUse: "The email is already been used.",
+        auth_tagline: "Discover connections beyond the classroom. Match based on majors, interests, and languages.",
+        auth_verified: "Verified Students",
+        auth_secure: "Secure Chat",
         
         // Navigation
         nav_discover: "Discover",
@@ -61,7 +64,7 @@ export const TRANSLATIONS = {
         profile_region: "Home Region",
         profile_region_hint: "e.g. Vancouver, BC",
         profile_region_none: "Not specified",
-        profile_fill_error: "Please fill in all mandatory fields (Name, Major, Interests, Languages)",
+        profile_fill_error: "Please fill in all mandatory fields (Name, Major, Interests)",
         profile_photo_title: "Choose Profile Photo",
         profile_photo_initials: "Initials",
         profile_photo_abstract: "Abstract",
@@ -120,6 +123,9 @@ export const TRANSLATIONS = {
         passError: "密码必须至少为6个字符。",
         matchError: "密码不匹配。",
         emailInUse: "该电子邮件已被使用。",
+        auth_tagline: "发现课堂之外的联系。根据专业、兴趣和语言进行匹配。",
+        auth_verified: "已验证学生",
+        auth_secure: "安全聊天",
 
         nav_discover: "发现",
         nav_chats: "聊天",
@@ -213,6 +219,9 @@ export const TRANSLATIONS = {
         passError: "密碼必須至少為6個字符。",
         matchError: "密碼不匹配。",
         emailInUse: "該電子郵件已被使用。",
+        auth_tagline: "發現課堂之外的聯繫。根據主修、興趣和語言進行配對。",
+        auth_verified: "已驗證學生",
+        auth_secure: "安全聊天",
 
         nav_discover: "發現",
         nav_chats: "聊天",
@@ -305,6 +314,9 @@ export const TRANSLATIONS = {
         passError: "La contraseña debe tener al menos 6 caracteres.",
         matchError: "Las contraseñas no coinciden.",
         emailInUse: "El correo electrónico ya está en uso.",
+        auth_tagline: "Descubre conexiones más allá del aula. Coincide según especialidades, intereses e idiomas.",
+        auth_verified: "Estudiantes Verificados",
+        auth_secure: "Chat Seguro",
 
         nav_discover: "Descubrir",
         nav_chats: "Chats",
@@ -397,6 +409,9 @@ export const TRANSLATIONS = {
         passError: "パスワードは6文字以上である必要があります。",
         matchError: "パスワードが一致しません。",
         emailInUse: "このメールアドレスは既に使用されています。",
+        auth_tagline: "教室を超えたつながりを発見。専攻、興味、言語に基づいてマッチング。",
+        auth_verified: "認証済み学生",
+        auth_secure: "安全なチャット",
 
         nav_discover: "発見",
         nav_chats: "チャット",
@@ -489,6 +504,9 @@ export const TRANSLATIONS = {
         passError: "비밀번호는 최소 6자 이상이어야 합니다.",
         matchError: "비밀번호가 일치하지 않습니다.",
         emailInUse: "이 이메일은 이미 사용 중입니다.",
+        auth_tagline: "교실 너머의 연결을 발견하세요. 전공, 관심사, 언어를 기반으로 매칭합니다.",
+        auth_verified: "인증된 학생",
+        auth_secure: "안전한 채팅",
 
         nav_discover: "발견",
         nav_chats: "채팅",
@@ -581,6 +599,9 @@ export const TRANSLATIONS = {
         passError: "Le mot de passe doit comporter au moins 6 caractères.",
         matchError: "Les mots de passe ne correspondent pas.",
         emailInUse: "Cet e-mail est déjà utilisé.",
+        auth_tagline: "Découvrez des connexions au-delà de la salle de classe. Trouvez des correspondances basées sur les majeures, les intérêts et les langues.",
+        auth_verified: "Étudiants Vérifiés",
+        auth_secure: "Chat Sécurisé",
 
         nav_discover: "Découvrir",
         nav_chats: "Discussions",
@@ -673,6 +694,9 @@ export const TRANSLATIONS = {
         passError: "La password deve contenere almeno 6 caratteri.",
         matchError: "Le password non corrispondono.",
         emailInUse: "L'email è già in uso.",
+        auth_tagline: "Scopri connessioni oltre l'aula. Trova corrispondenze basate su corsi, interessi e lingue.",
+        auth_verified: "Studenti Verificati",
+        auth_secure: "Chat Sicura",
 
         nav_discover: "Scopri",
         nav_chats: "Chat",
@@ -765,6 +789,9 @@ export const TRANSLATIONS = {
         passError: "A senha deve ter pelo menos 6 caracteres.",
         matchError: "As senhas não coincidem.",
         emailInUse: "O e-mail já está em uso.",
+        auth_tagline: "Descubra conexões além da sala de aula. Encontre correspondências com base em cursos, interesses e idiomas.",
+        auth_verified: "Estudantes Verificados",
+        auth_secure: "Chat Seguro",
 
         nav_discover: "Descobrir",
         nav_chats: "Conversas",
