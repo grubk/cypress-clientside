@@ -127,17 +127,17 @@ export const AuthView: React.FC = () => {
                     </div>
                     <h1 className="text-5xl font-bold tracking-tight mb-6">Cypress</h1>
                     <p className="text-xl text-blue-100/90 leading-relaxed font-light">
-                        Discover connections beyond the classroom. Match based on majors, interests, and languages.
+                        {t.auth_tagline}
                     </p>
                     
                     <div className="mt-12 flex justify-center gap-4 text-sm font-medium text-blue-200">
                         <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full backdrop-blur-sm border border-white/10">
                             <i className="fas fa-check-circle text-ubc-gold"></i>
-                            Verified Students
+                            {t.auth_verified}
                         </div>
                          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full backdrop-blur-sm border border-white/10">
                             <i className="fas fa-shield-alt text-ubc-gold"></i>
-                            Secure Chat
+                            {t.auth_secure}
                         </div>
                     </div>
                 </div>
