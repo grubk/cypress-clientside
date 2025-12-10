@@ -130,7 +130,7 @@ export const ProfileView: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!displayName || !major || selectedInterests.length === 0 || selectedLanguages.length === 0) {
+        if (!displayName || !major || selectedInterests.length === 0) {
             alert(t.profile_fill_error);
             return;
         }
