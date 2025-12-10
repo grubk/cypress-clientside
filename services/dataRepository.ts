@@ -326,7 +326,7 @@ export class DataRepository {
         return profiles.slice(0, 20).map(({ _commonInterestCount, ...profile }) => profile);
     }
 
-    /* 
+    /*
      * Discovery: Search
      */
     public async searchUsers(query: string): Promise<MatchProfileModel[]> {
@@ -337,12 +337,11 @@ export class DataRepository {
             .from('profiles')
             .select('*')
             .neq('id', user.id)
+            .eq('is_searchable', true)
             .ilike('display_name', `%${query}%`)
             .limit(10);
 
-        if (error || !data) return [];
-
-        return data.map((p: any) => ({
+        if (error || !data) return [];        return data.map((p: any) => ({
             uid: p.id,
             displayName: p.display_name || 'Student',
             major: p.major || Major.ARTS,
